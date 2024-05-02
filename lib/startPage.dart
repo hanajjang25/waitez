@@ -45,6 +45,11 @@ class StartPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/regRestaurant');
                   },
                   child: Text('음식점 등록')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/waitingNumber');
+                  },
+                  child: Text('대기순번')),
             ],
           ),
         ]),

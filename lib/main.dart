@@ -10,6 +10,7 @@ import 'findID.dart';
 import 'findPassword.dart';
 import 'regRestaurant.dart';
 import 'restaurantInfo.dart';
+import 'waitingNumber.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
         '/findID': (context) => findID(),
         '/findPassword': (context) => findPassword(),
         '/regRestaurant': (context) => regRestaurant(),
+        '/waitingNumber': (context) => waitingNumber(),
       },
     );
   }
