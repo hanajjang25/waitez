@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'firebase_options.dart';
 import 'startPage.dart';
 import 'login.dart';
@@ -8,6 +9,7 @@ import 'signUp.dart';
 import 'memberInfo.dart';
 import 'findID.dart';
 import 'findPassword.dart';
+import 'findPassword_email.dart';
 import 'regRestaurant.dart';
 import 'restaurantInfo.dart';
 import 'waitingNumber.dart';
@@ -30,10 +32,11 @@ class MyApp extends StatelessWidget {
         '/': (context) => StartPage(),
         '/login': (context) => login(),
         '/c': (context) => nonMember(),
-        '/signup': (context) => signup(),
+        '/signup': (context) => signUp(),
         '/memberInfo': (context) => memberInfo(),
         '/findID': (context) => findID(),
         '/findPassword': (context) => findPassword(),
+        '/findPassword_email': (context) => findPassword_email(),
         '/regRestaurant': (context) => regRestaurant(),
         '/waitingNumber': (context) => waitingNumber(),
       },
