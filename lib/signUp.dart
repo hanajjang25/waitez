@@ -5,6 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class signUp extends StatelessWidget {
+  final TextEditingController _emailInputText = TextEditingController();
+  final TextEditingController _passInputText = TextEditingController();
+  final TextEditingController _fullNameInputText = TextEditingController();
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;

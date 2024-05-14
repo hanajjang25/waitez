@@ -13,6 +13,10 @@ import 'findPassword_email.dart';
 import 'regRestaurant.dart';
 import 'restaurantInfo.dart';
 import 'waitingNumber.dart';
+import 'search.dart';
+import 'home.dart';
+import 'favorite.dart';
+import 'favorite_search.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +43,11 @@ class MyApp extends StatelessWidget {
         '/findPassword_email': (context) => findPassword_email(),
         '/regRestaurant': (context) => regRestaurant(),
         '/waitingNumber': (context) => waitingNumber(),
+        '/restaurantInfo': (context) => restaurantInfo(),
+        '/search': (context) => search(),
+        '/home': (context) => home(),
+        '/favorite': (context) => favorite(),
+        '/favoriteSearch': (context) => favoriteSearch(),
       },
     );
   }

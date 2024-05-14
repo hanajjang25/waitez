@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class login extends StatelessWidget {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -135,8 +138,45 @@ class login extends StatelessWidget {
                     ),
                     SizedBox(height: 50),
                     ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/');
+                      onPressed: () async {
+                        try {
+                          await FirebaseAuth.instance
+                              .signInWithEmailAndPassword(
+                            email: _emailController.text.trim(),
+                            password: _passwordController.text.trim(),
+                          );
+                          Navigator.pushNamed(context, '/main');
+                        } on FirebaseAuthException catch (e) {
+                          print('Failed with error code: ${e.code}');
+                          String errorMessage = '';
+                          switch (e.code) {
+                            case 'user-not-found':
+                              errorMessage = 'User not found';
+                              break;
+                            case 'wrong-password':
+                              errorMessage = 'Wrong password';
+                              break;
+                            default:
+                              errorMessage = 'An error occurred';
+                          }
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text('Login Error'),
+                                content: Text(errorMessage),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: Text('OK'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        }
                       },
                       child: Text('Login'),
                       style: ButtonStyle(

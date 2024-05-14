@@ -51,6 +51,26 @@ class StartPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/waitingNumber');
                   },
                   child: Text('대기순번')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/restaurantInfo');
+                  },
+                  child: Text('음식점정보')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/search');
+                  },
+                  child: Text('검색')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/home');
+                  },
+                  child: Text('home')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/favorite');
+                  },
+                  child: Text('즐겨찾기')),
             ],
           ),
         ]),

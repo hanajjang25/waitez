@@ -1,258 +1,967 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'menu_bottom.dart';
 
 class restaurantInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(70.0),
+        child: AppBar(
+          backgroundColor: Colors.white,
+          toolbarHeight: 100,
+          leading:
+              IconButton(onPressed: () {}, icon: Icon(Icons.menu)), // 왼쪽 메뉴버튼
+          title: Text(
+            '마라마라탕탕',
+            style: TextStyle(
+              color: Color(0xFF1C1C21),
+              fontSize: 18,
+              fontFamily: 'Epilogue',
+              fontWeight: FontWeight.w700,
+              height: 0.07,
+              letterSpacing: -0.27,
+            ),
+          ), // 타이틀
+          centerTitle: true, // 타이틀 텍스트를 가운데로 정렬 시킴
+          actions: [
+            // 우측의 액션 버튼들
+            IconButton(onPressed: () {}, icon: Icon(Icons.refresh)),
+            IconButton(onPressed: () {}, icon: Icon(Icons.notifications))
+          ],
+        ),
+      ),
       body: SingleChildScrollView(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SizedBox(height: 30),
-            Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Text(
-                '음식점 등록',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20), // 양쪽에 50의 여백 추가
-              child: Container(
-                height: 1,
-                width: double.maxFinite,
-                color: Colors.black,
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 70.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Colors.black),
-                  ),
-                  labelText: '대표자명',
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
+          children: [
             Container(
-              padding: EdgeInsets.symmetric(vertical: 20.0),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.black), // 테두리 설정
-                borderRadius: BorderRadius.zero,
-                color: Colors.grey.withOpacity(0.1), // 비활성 상태일 때의 배경색
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8.0), // 내부 패딩 설정
-                child: Text(
-                  '아이디',
-                  style: TextStyle(
-                    color: Colors.grey, // 텍스트 색상 설정
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 20.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.zero,
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                        labelText: '등록번호',
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  SizedBox(
-                    width: 40,
-                    height: 60,
-                    child: TextButton(
-                      onPressed: () {},
-                      style: ButtonStyle(
-                        backgroundColor:
-                            MaterialStateProperty.resolveWith<Color>((states) {
-                          // 버튼의 배경색 지정
-                          if (states.contains(MaterialState.disabled)) {
-                            return Colors.grey; // 비활성 상태일 때 배경색
-                          }
-                          return Colors.transparent; // 활성 상태일 때 배경색
-                        }),
-                        shape: MaterialStateProperty.all<OutlinedBorder>(
-                          RoundedRectangleBorder(
-                            side: BorderSide(color: Colors.black), // 테두리 설정
-                            borderRadius: BorderRadius.circular(0), // 모서리 설정
+              width: screenWidth,
+              height: screenHeight,
+              decoration: BoxDecoration(color: Colors.white),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 390,
+                      height: 925,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(color: Colors.white),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 390,
+                            height: 250,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 390,
+                                  height: 221,
+                                  clipBehavior: Clip.antiAlias,
+                                  decoration: BoxDecoration(
+                                    image: DecorationImage(
+                                      image: NetworkImage(
+                                          "https://via.placeholder.com/390x221"),
+                                      fit: BoxFit.fill,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '확인',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.black, // 텍스트 색상 설정
+                          Container(
+                            width: 390,
+                            height: 59.50,
+                            padding: const EdgeInsets.only(
+                              top: 20,
+                              left: 16,
+                              right: 16,
+                              bottom: 12,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 151.09,
+                                  height: 27.50,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '마라마라탕탕',
+                                              style: TextStyle(
+                                                color: Color(0xFF1C1C21),
+                                                fontSize: 22,
+                                                fontFamily: 'Epilogue',
+                                                fontWeight: FontWeight.w700,
+                                                height: 0.06,
+                                                letterSpacing: -0.33,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                          Container(
+                            width: 390,
+                            height: 72,
+                            decoration: BoxDecoration(color: Colors.white),
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  left: 15,
+                                  top: 0.50,
+                                  child: Container(
+                                    width: 235.53,
+                                    height: 72,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 147.53,
+                                          height: 66,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                width: 147.53,
+                                                height: 24,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 24,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '주소',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF1C1C21),
+                                                              fontSize: 16,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                              height: 0.09,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 147.53,
+                                                height: 21,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 21,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '강원특별자치도 단계동 100-00 1층',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF3D3F49),
+                                                              fontSize: 14,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w400,
+                                                              height: 0.11,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 280,
+                                  top: 21.50,
+                                  child: Container(
+                                    width: 95,
+                                    height: 24,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(width: 95.20, height: 24),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 390,
+                            height: 72,
+                            decoration: BoxDecoration(color: Colors.white),
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  left: 15,
+                                  top: 0.50,
+                                  child: Container(
+                                    width: 235.53,
+                                    height: 72,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 147.53,
+                                          height: 66,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                width: 147.53,
+                                                height: 24,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 24,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '영업시간',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF1C1C21),
+                                                              fontSize: 16,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                              height: 0.09,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 147.53,
+                                                height: 21,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 21,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '10:00-22:00',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF3D3F49),
+                                                              fontSize: 14,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w400,
+                                                              height: 0.11,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 280,
+                                  top: 21.50,
+                                  child: Container(
+                                    width: 95,
+                                    height: 24,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(width: 95.20, height: 24),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 390,
+                            height: 59.50,
+                            padding: const EdgeInsets.only(
+                              top: 20,
+                              left: 16,
+                              right: 16,
+                              bottom: 12,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 151.09,
+                                  height: 27.50,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'MENU',
+                                              style: TextStyle(
+                                                color: Color(0xFF1C1C21),
+                                                fontSize: 22,
+                                                fontFamily: 'Epilogue',
+                                                fontWeight: FontWeight.w700,
+                                                height: 0.06,
+                                                letterSpacing: -0.33,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 390,
+                            height: 96,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(color: Colors.white),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: double.infinity,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 72,
+                                          height: 72,
+                                          clipBehavior: Clip.antiAlias,
+                                          decoration: ShapeDecoration(
+                                            image: DecorationImage(
+                                              image: NetworkImage(
+                                                  "https://via.placeholder.com/72x72"),
+                                              fit: BoxFit.fill,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Container(
+                                          width: 270,
+                                          height: 66,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                width: 270,
+                                                height: 24,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 24,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            'Salmon Nigiri',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF1C0F0C),
+                                                              fontSize: 16,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                              height: 0.09,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 270,
+                                                height: 21,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 21,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '\$7.00',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF99594C),
+                                                              fontSize: 14,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w400,
+                                                              height: 0.11,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 270,
+                                                height: 21,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 21,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '2 pieces',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF99594C),
+                                                              fontSize: 14,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w400,
+                                                              height: 0.11,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 390,
+                            height: 96,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(color: Colors.white),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: double.infinity,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 72,
+                                          height: 72,
+                                          clipBehavior: Clip.antiAlias,
+                                          decoration: ShapeDecoration(
+                                            image: DecorationImage(
+                                              image: NetworkImage(
+                                                  "https://via.placeholder.com/72x72"),
+                                              fit: BoxFit.fill,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Container(
+                                          width: 270,
+                                          height: 66,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                width: 270,
+                                                height: 24,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 24,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            'Salmon Nigiri',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF1C0F0C),
+                                                              fontSize: 16,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                              height: 0.09,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 270,
+                                                height: 21,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 21,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '\$7.00',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF99594C),
+                                                              fontSize: 14,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w400,
+                                                              height: 0.11,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 270,
+                                                height: 21,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: double.infinity,
+                                                      height: 21,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '2 pieces',
+                                                            style: TextStyle(
+                                                              color: Color(
+                                                                  0xFF99594C),
+                                                              fontSize: 14,
+                                                              fontFamily:
+                                                                  'Epilogue',
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w400,
+                                                              height: 0.11,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 390,
+                            height: 134,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 390,
+                                  height: 134,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration:
+                                      BoxDecoration(color: Colors.white),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 358,
+                                        decoration: ShapeDecoration(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              width: 358,
+                                              height: 110.50,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 16),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Container(
+                                                    width: 358,
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 64,
+                                                        vertical: 16),
+                                                    decoration: ShapeDecoration(
+                                                      color: Color(0xFF1A94FF),
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(12),
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Text(
+                                                          'Cancel Reservation',
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 14,
+                                                            fontFamily: 'Inter',
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            height: 0,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 70.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Colors.black),
-                  ),
-                  labelText: '주소',
+                  ],
                 ),
               ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 70.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Colors.black),
-                  ),
-                  labelText: '전화번호',
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 70.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Colors.black),
-                  ),
-                  labelText: '영업시간',
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 5.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.zero,
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                        labelText: '예약하기 활성화 시간',
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 5),
-                  SizedBox(
-                    child: Switch(
-                      value: true, // 스위치의 초기 상태
-                      onChanged: (bool newValue) {
-                        // 스위치가 변경될 때 실행할 함수
-                        // 여기에 원하는 작업을 추가하세요.
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 70.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Colors.black),
-                  ),
-                  labelText: '휴무일',
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 70.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Colors.black),
-                  ),
-                  labelText: '최대대기인원',
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 70.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Colors.black),
-                  ),
-                  labelText: '평균대기시간',
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: EdgeInsets.only(left: 20.0, right: 70.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Colors.black),
-                  ),
-                  labelText: '원산지 표기',
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    child: Text('등록'),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
       ),
+      bottomNavigationBar: menuButtom(),
     );
   }
 }
