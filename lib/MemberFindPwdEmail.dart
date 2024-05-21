@@ -1,10 +1,30 @@
 import 'package:flutter/material.dart';
 
+import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth 추가
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart';
+
 class findPassword_email extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
+
+    // 비밀번호 재설정 이메일을 다시 보내는 함수
+    void resendResetEmail() async {
+      FirebaseAuth _auth = FirebaseAuth.instance;
+      User? user = _auth.currentUser;
+
+      if (user != null) {
+        try {
+          await _auth.sendPasswordResetEmail(email: user.email!);
+          print('Password reset email sent');
+        } catch (e) {
+          print('Error sending password reset email: $e');
+        }
+      }
+    }
+
     return Column(
       children: [
         Container(
@@ -78,22 +98,19 @@ class findPassword_email extends StatelessWidget {
                           fontSize: 16,
                           fontFamily: 'Inter',
                           fontWeight: FontWeight.w700,
-                          height: 0.14,
+                          height: 1.2, // 텍스트 높이 조정
                         ),
+                      ),
+                      SizedBox(
+                        width: 10,
                       ),
                       TextButton(
                         onPressed: () {
-                          // Resubmit 버튼 로직 처리
+                          resendResetEmail();
                         },
                         style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero, // 버튼의 패딩 제거
-                          tapTargetSize: MaterialTapTargetSize
-                              .shrinkWrap, // 탭 크기를 텍스트 크기에 맞춤
-                          textStyle: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w700,
-                            height: 0.14,
-                          ),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: EdgeInsets.zero,
                         ),
                         child: Text(
                           'Resubmit',

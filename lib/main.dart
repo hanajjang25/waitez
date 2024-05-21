@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:waitez/MenuRegList.dart';
 import 'firebase_options.dart';
-import 'startPage.dart';
-import 'login.dart';
-import 'nonMember.dart';
-import 'signUp.dart';
-import 'memberInfo.dart';
-import 'findID.dart';
-import 'findPassword.dart';
-import 'findPassword_email.dart';
-import 'regRestaurant.dart';
-import 'restaurantInfo.dart';
-import 'waitingNumber.dart';
-import 'search.dart';
-import 'home.dart';
-import 'favorite.dart';
-import 'favorite_search.dart';
+import 'linkPage.dart';
+import 'MemberLogin.dart';
+import 'UserSignUp.dart';
+import 'MemberInfo.dart';
+import 'MemberFindPwd.dart';
+import 'MemberFindPwdEmail.dart';
+import 'RestaurantReg.dart';
+import 'RestaurantInfo.dart';
+import 'UserwaitingNumber.dart';
+import 'UserSearch.dart';
+import 'UserHome.dart';
+import 'StaffHome.dart';
+import 'MemberFavorite.dart';
+import 'MemberFavoriteSearch.dart';
+import 'RestaurantEdit.dart';
+import 'MenuRegOne.dart';
+import 'MenuRegList.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,19 +38,20 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => StartPage(),
         '/login': (context) => login(),
-        '/c': (context) => nonMember(),
-        '/signup': (context) => signUp(),
+        '/signup': (context) => SignUp(),
         '/memberInfo': (context) => memberInfo(),
-        '/findID': (context) => findID(),
         '/findPassword': (context) => findPassword(),
         '/findPassword_email': (context) => findPassword_email(),
         '/regRestaurant': (context) => regRestaurant(),
         '/waitingNumber': (context) => waitingNumber(),
-        '/restaurantInfo': (context) => restaurantInfo(),
+        '/restaurantInfo': (context) => RestaurantInfo(),
         '/search': (context) => search(),
         '/home': (context) => home(),
+        '/homeStaff': (context) => homeStaff(),
         '/favorite': (context) => favorite(),
         '/favoriteSearch': (context) => favoriteSearch(),
+        '/editRestaurant': (context) => editregRestaurant(),
+        '/MenuRegList': (context) => MenuRegList(),
       },
     );
   }

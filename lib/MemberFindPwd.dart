@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class findPassword extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
+
   Future<void> sendResetEmail(BuildContext context) async {
     try {
       // Firebase에 이메일로 비밀번호 재설정 이메일 보내기
@@ -28,6 +29,9 @@ class findPassword extends StatelessWidget {
           );
         },
       );
+
+      // 이메일을 보내고 나면 '/findPassword_email'로 이동
+      Navigator.pushNamed(context, '/findPassword_email');
     } catch (e) {
       // 오류 메시지 다이얼로그 표시
       showDialog(
@@ -194,7 +198,8 @@ class findPassword extends StatelessWidget {
                       ),
                     ),
                     onPressed: () {
-                      Navigator.pushNamed(context, '/findPassword_email');
+                      // 비밀번호 재설정 이메일 보내기
+                      sendResetEmail(context);
                     },
                     child: Text(
                       'Submit',

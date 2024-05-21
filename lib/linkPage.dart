@@ -18,11 +18,6 @@ class StartPage extends StatelessWidget {
                   child: Text('로그인')),
               TextButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/c');
-                  },
-                  child: Text('비회원')),
-              TextButton(
-                  onPressed: () {
                     Navigator.pushNamed(context, '/signup');
                   },
                   child: Text('회원가입')),
@@ -31,11 +26,6 @@ class StartPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/memberInfo');
                   },
                   child: Text('회원정보')),
-              TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/findID');
-                  },
-                  child: Text('아이디찾기')),
               TextButton(
                   onPressed: () {
                     Navigator.pushNamed(context, '/findPassword');
@@ -71,6 +61,21 @@ class StartPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/favorite');
                   },
                   child: Text('즐겨찾기')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/homeStaff');
+                  },
+                  child: Text('직원home')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/editRestaurant');
+                  },
+                  child: Text('음식점 수정')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/cart');
+                  },
+                  child: Text('장바구니')),
             ],
           ),
         ]),

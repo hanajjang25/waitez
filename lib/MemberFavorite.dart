@@ -1,8 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'menu_bottom.dart';
-import 'favorite_star.dart'; // 즐겨찾기 별표시 위젯이 있다고 가정
-import 'restaurantDetailPage.dart';
+import 'UserBottom.dart';
+import '_noRestaurantDetail.dart';
+
+import 'package:flutter/material.dart';
+
+// 별 표시
+class starButton extends StatefulWidget {
+  const starButton({super.key});
+
+  @override
+  State<starButton> createState() => _starButtonState();
+}
+
+// 노랑일 때 별 클릭 시 흰색, 흰색일 때 별 클릭 시 노랑
+class _starButtonState extends State<starButton> {
+  bool _isStarred = false;
+
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isStarred = !_isStarred; // Toggle the state
+        });
+      },
+      child: Container(
+        width: 15,
+        height: 15,
+        decoration: ShapeDecoration(
+          color:
+              _isStarred ? Colors.yellow : Colors.white, // Conditional coloring
+          shape: StarBorder(
+            side: BorderSide(
+                width: 1, color: Colors.black), // Ensure the border is visible
+            points: 5,
+            innerRadiusRatio: 0.38,
+            pointRounding: 0,
+            valleyRounding: 0,
+            rotation: 0,
+            squash: 0,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class favorite extends StatefulWidget {
   const favorite({super.key});
@@ -21,9 +63,11 @@ class favoriteDetails {
 
 class _FavoriteState extends State<favorite> {
   final List<favoriteDetails> allItems = [
-    favoriteDetails("마라마라탕탕", "4.5", "Chinese · 146th St"),
-    favoriteDetails("Kanpachi Nigiri", "4.9", "Japanese · Downtown"),
-    favoriteDetails("The Progress", "4.8", "American · Fillmore"),
+    favoriteDetails("마라마라탕탕", "강원특별자치도 단계동 100-001 1층", "마라탕, 마라샹궈, 탕후루"),
+    favoriteDetails(
+        "김밥마리", "강원특별자치도 원주시 북원로 2234-56 1층 106호", "참치김밥, 야채김밥, 돈까스 김밥"),
+    favoriteDetails(
+        "샐러리드", "강원특별자치도 원줏, 단구동 1001-104 3층", "삼겹웜볼, 삼겹소바 포케, 그린 샐러드"),
   ];
   List<favoriteDetails> filteredItems = [];
 
@@ -86,13 +130,13 @@ class _FavoriteState extends State<favorite> {
                   subtitle: Text("${item.rating}, ${item.description}"),
                   trailing: starButton(), // 별 버튼 위젯
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            restaurantDetailPage(restaurant: item),
-                      ),
-                    );
+                    //Navigator.push(
+                    //context,
+                    //MaterialPageRoute(
+                    // builder: (context) =>
+                    //      restaurantDetailPage(restaurant: item),
+                    //),
+                    //);
                   },
                 );
               },

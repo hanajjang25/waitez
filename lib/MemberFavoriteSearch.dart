@@ -1,14 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'menu_bottom.dart';
+import 'UserBottom.dart';
 
-class search extends StatefulWidget {
+class favoriteSearch extends StatefulWidget {
   @override
   _SearchPageState createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<search> {
+class _SearchPageState extends State<favoriteSearch> {
   List<String> allItems = [
     "마라마라탕탕",
     "Kanpachi Nigiri",
