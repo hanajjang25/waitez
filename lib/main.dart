@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:waitez/MenuRegList.dart';
+import 'package:waitez/UserReservation.dart';
 import 'firebase_options.dart';
 import 'linkPage.dart';
 import 'MemberLogin.dart';
@@ -20,6 +21,10 @@ import 'MemberFavoriteSearch.dart';
 import 'RestaurantEdit.dart';
 import 'MenuRegOne.dart';
 import 'MenuRegList.dart';
+import 'UserCart.dart';
+import 'UserReservation.dart';
+import 'UserReservationMenu.dart';
+import 'MemberCommunity.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +57,10 @@ class MyApp extends StatelessWidget {
         '/favoriteSearch': (context) => favoriteSearch(),
         '/editRestaurant': (context) => editregRestaurant(),
         '/MenuRegList': (context) => MenuRegList(),
+        '/cart': (context) => Cart(),
+        '/reservation': (context) => Reservation(),
+        '/reservationMenu': (context) => ReservationMenu(),
+        '/community': (context) => CommunityMainPage(),
       },
     );
   }

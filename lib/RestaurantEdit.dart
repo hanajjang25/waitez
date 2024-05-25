@@ -376,7 +376,7 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                       SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: _submitForm,
-                        child: Text('등록하기'),
+                        child: Text('수정'),
                       ),
                     ],
                   ),

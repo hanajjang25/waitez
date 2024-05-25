@@ -1,5 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/widgets.dart';
 import 'UserBottom.dart'; // Assume this widget exists
 import '_noRestaurantDetail.dart'; // Assume this widget exists
 import 'MemberFavorite.dart';
@@ -93,7 +95,26 @@ class _SearchState extends State<search> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, // 왼쪽 정렬
           children: [
+            SizedBox(height: 20),
+            Row(children: [
+              Container(
+                height: 20,
+                child: Icon(Icons.location_on),
+              ),
+              SizedBox(width: 15),
+              Container(
+                width: 200,
+                alignment: Alignment.centerLeft, // 왼쪽 정렬
+                child: TextFormField(
+                  decoration: InputDecoration(
+                    hintText: 'ex) 서울시 강남구 삼성동',
+                  ),
+                ),
+              ),
+            ]),
+            SizedBox(height: 20),
             TextField(
               onChanged: (value) => _filterItems(value),
               decoration: InputDecoration(
@@ -149,6 +170,7 @@ class _SearchState extends State<search> {
           ],
         ),
       ),
+
       bottomNavigationBar:
           menuButtom(), // Bottom navigation bar, assume this widget exists
     );

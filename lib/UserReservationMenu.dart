@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-class RestaurantInfo extends StatefulWidget {
+class ReservationMenu extends StatefulWidget {
   @override
-  _RestaurantInfoState createState() => _RestaurantInfoState();
+  _ReservationMenuState createState() => _ReservationMenuState();
 }
 
-class _RestaurantInfoState extends State<RestaurantInfo> {
+class _ReservationMenuState extends State<ReservationMenu> {
   bool isFavorite = false;
 
   final List<Map<String, String>> menuItems = [
@@ -53,7 +53,9 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
           ),
           IconButton(
             icon: Icon(Icons.shopping_cart),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.pushNamed(context, '/cart');
+            },
           ),
         ],
       ),
@@ -154,30 +156,6 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                 },
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/reservation');
-                  },
-                  child: Text('예약하기'),
-                  style: ButtonStyle(
-                    backgroundColor:
-                        MaterialStateProperty.all(Color(0xFF1A94FF)),
-                    foregroundColor: MaterialStateProperty.all(Colors.white),
-                    minimumSize: MaterialStateProperty.all(Size(200, 50)),
-                    padding: MaterialStateProperty.all(
-                        EdgeInsets.symmetric(horizontal: 10)),
-                    shape: MaterialStateProperty.all(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                )
-              ],
-            ),
             SizedBox(
               height: 100,
             )
@@ -188,17 +166,38 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
   }
 }
 
-class MenuDetailsPage extends StatelessWidget {
+class MenuDetailsPage extends StatefulWidget {
   final Map<String, String> menuItem;
 
   MenuDetailsPage({required this.menuItem});
+
+  @override
+  _MenuDetailsPageState createState() => _MenuDetailsPageState();
+}
+
+class _MenuDetailsPageState extends State<MenuDetailsPage> {
+  int quantity = 1;
+
+  void increaseQuantity() {
+    setState(() {
+      quantity++;
+    });
+  }
+
+  void decreaseQuantity() {
+    setState(() {
+      if (quantity > 1) {
+        quantity--;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          menuItem['name']!,
+          widget.menuItem['name']!,
           style: TextStyle(
             color: Color(0xFF1C1C21),
             fontSize: 18,
@@ -245,7 +244,7 @@ class MenuDetailsPage extends StatelessWidget {
             ),
             SizedBox(height: 40),
             Text(
-              menuItem['name']!,
+              widget.menuItem['name']!,
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 24,
@@ -257,7 +256,7 @@ class MenuDetailsPage extends StatelessWidget {
             ),
             SizedBox(height: 50),
             Text(
-              '가격: ${menuItem['price']}',
+              '가격: ${widget.menuItem['price']}',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 20,
@@ -277,6 +276,26 @@ class MenuDetailsPage extends StatelessWidget {
                 letterSpacing: -0.27,
               ),
             ),
+            SizedBox(height: 50),
+            Row(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.remove),
+                  onPressed: decreaseQuantity,
+                ),
+                Text(
+                  '$quantity',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.add),
+                  onPressed: increaseQuantity,
+                ),
+              ],
+            ),
             SizedBox(height: 100),
             Center(
               child: ElevatedButton(
@@ -284,6 +303,7 @@ class MenuDetailsPage extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('장바구니에 추가되었습니다.')),
                   );
+                  Navigator.pop(context);
                 },
                 child: Text('장바구니에 추가'),
               ),
