@@ -76,6 +76,16 @@ class StartPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/cart');
                   },
                   child: Text('장바구니')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/reservation');
+                  },
+                  child: Text('예약')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/community');
+                  },
+                  child: Text('커뮤니티')),
             ],
           ),
         ]),
