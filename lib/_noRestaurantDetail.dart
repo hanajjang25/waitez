@@ -3,7 +3,7 @@ import 'package:waitez/MemberFavorite.dart';
 import 'package:waitez/UserSearch.dart';
 
 class restaurantDetailPage extends StatelessWidget {
-  final searchDetails restaurant;
+  final SearchDetails restaurant;
 
   const restaurantDetailPage({Key? key, required this.restaurant})
       : super(key: key);
@@ -65,8 +65,7 @@ class restaurantDetailPage extends StatelessWidget {
                                   clipBehavior: Clip.antiAlias,
                                   decoration: BoxDecoration(
                                     image: DecorationImage(
-                                      image: NetworkImage(
-                                          "https://via.placeholder.com/390x221"),
+                                      image: NetworkImage(restaurant.photoUrl),
                                       fit: BoxFit.fill,
                                     ),
                                   ),
@@ -106,7 +105,7 @@ class restaurantDetailPage extends StatelessWidget {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              "${restaurant.name}",
+                                              restaurant.name,
                                               style: TextStyle(
                                                 color: Color(0xFF1C1C21),
                                                 fontSize: 22,
@@ -223,7 +222,7 @@ class restaurantDetailPage extends StatelessWidget {
                                                                 .start,
                                                         children: [
                                                           Text(
-                                                            "${restaurant.address}",
+                                                            restaurant.address,
                                                             style: TextStyle(
                                                               color: Color(
                                                                   0xFF3D3F49),
@@ -368,7 +367,8 @@ class restaurantDetailPage extends StatelessWidget {
                                                                 .start,
                                                         children: [
                                                           Text(
-                                                            '10:00-22:00',
+                                                            restaurant
+                                                                .businessHours,
                                                             style: TextStyle(
                                                               color: Color(
                                                                   0xFF3D3F49),

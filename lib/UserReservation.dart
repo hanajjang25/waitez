@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'UserBottom.dart';
 import 'UserReservationMenu.dart';
 
@@ -9,9 +11,47 @@ class Reservation extends StatefulWidget {
 }
 
 class _ReservationState extends State<Reservation> {
-  int numberOfPeople = 1;
+  int numberOfPeople = 0;
   bool isPeopleSelectorEnabled = false;
   bool isFirstClick = true;
+
+  void showSnackBar(BuildContext context, String message) {
+    final snackBar = SnackBar(
+      content: Text(message),
+      duration: Duration(seconds: 2),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+
+  void _saveReservation(BuildContext context, String type) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (userDoc.exists) {
+        final nickname = userDoc.data()?['nickname'] ?? '';
+        final reservationData = {
+          'nickname': nickname,
+          'type': type == '매장' ? 1 : 2,
+          'timestamp': Timestamp.now(),
+        };
+        if (type == '매장') {
+          reservationData['numberOfPeople'] = numberOfPeople;
+        }
+        await FirebaseFirestore.instance
+            .collection('reservations')
+            .add(reservationData);
+        Navigator.pushNamed(context, '/reservationMenu',
+            arguments: {'type': type});
+      } else {
+        print('User document does not exist.');
+      }
+    } else {
+      print('User is not logged in.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,14 +81,19 @@ class _ReservationState extends State<Reservation> {
                     isPeopleSelectorEnabled = true;
                     isFirstClick = false;
                   });
+                  showSnackBar(context, '인원수를 선택하세요');
                 } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          InfoInputScreen(numberOfPeople: numberOfPeople),
-                    ),
-                  );
+                  if (numberOfPeople > 0) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            InfoInputScreen(numberOfPeople: numberOfPeople),
+                      ),
+                    );
+                  } else {
+                    showSnackBar(context, '인원수를 선택하세요');
+                  }
                 }
               },
               child: Text('매장'),
@@ -79,7 +124,7 @@ class _ReservationState extends State<Reservation> {
                       onPressed: isPeopleSelectorEnabled
                           ? () {
                               setState(() {
-                                if (numberOfPeople > 1) {
+                                if (numberOfPeople > 0) {
                                   numberOfPeople--;
                                 }
                               });
@@ -104,13 +149,7 @@ class _ReservationState extends State<Reservation> {
             SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        InfoInputScreen(numberOfPeople: numberOfPeople),
-                  ),
-                );
+                _saveReservation(context, '포장');
               },
               child: Text('포장'),
               style: ButtonStyle(
@@ -146,11 +185,104 @@ class InfoInputScreen extends StatefulWidget {
 
 class _InfoInputScreenState extends State<InfoInputScreen> {
   late int numberOfPeople;
+  final TextEditingController _nicknameController =
+      TextEditingController(text: '');
+  final TextEditingController _phoneController =
+      TextEditingController(text: '');
+  final TextEditingController _altPhoneController =
+      TextEditingController(text: '');
 
   @override
   void initState() {
     super.initState();
     numberOfPeople = widget.numberOfPeople;
+    _fetchUserInfo();
+  }
+
+  Future<void> _fetchUserInfo() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          final data = userDoc.data()!;
+          setState(() {
+            _nicknameController.text = data['nickname'] ?? '';
+            _phoneController.text = data['phoneNum'] ?? '';
+          });
+        } else {
+          print('User document does not exist.');
+        }
+      } else {
+        print('User is not logged in.');
+      }
+    } catch (e) {
+      print('Error fetching user info: $e');
+    }
+  }
+
+  String _formatPhoneNumber(String value) {
+    value = value.replaceAll('-', ''); // Remove existing dashes
+    if (value.length > 3) {
+      value = value.substring(0, 3) + '-' + value.substring(3);
+    }
+    if (value.length > 8) {
+      value = value.substring(0, 8) + '-' + value.substring(8);
+    }
+    return value;
+  }
+
+  Future<void> _saveReservationInfo() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Firestore 트랜잭션 사용하여 업데이트
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final reservationQuery = await FirebaseFirestore.instance
+              .collection('reservations')
+              .where('nickname', isEqualTo: _nicknameController.text)
+              .orderBy('timestamp', descending: true)
+              .limit(1)
+              .get();
+
+          // 디버깅: 쿼리 결과 로그 출력
+          print('Query Result Count: ${reservationQuery.docs.length}');
+          reservationQuery.docs.forEach((doc) {
+            print('Document ID: ${doc.id}, Data: ${doc.data()}');
+          });
+
+          if (reservationQuery.docs.isNotEmpty) {
+            final reservationDoc = reservationQuery.docs.first.reference;
+            transaction.update(reservationDoc, {
+              'numberOfPeople': numberOfPeople,
+              'altPhoneNum': _altPhoneController.text,
+            });
+
+            // Retrieve reservationId
+            final reservationId = reservationDoc.id;
+
+            // Update the reservation info
+            await FirebaseFirestore.instance.collection('cart').add({
+              'reservationId': reservationId,
+              'nickname': _nicknameController.text,
+              'timestamp': Timestamp.now(),
+              // Add any other fields required in the cart document
+            });
+
+            print('Reservation updated and cart info saved successfully');
+          } else {
+            print('No recent reservation found for this user.');
+          }
+        });
+      } else {
+        print('User is not logged in.');
+      }
+    } catch (e) {
+      print('Error saving reservation info: $e');
+    }
   }
 
   @override
@@ -172,7 +304,7 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
           children: [
             SizedBox(height: 50),
             Text(
-              '이름',
+              '닉네임',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
@@ -180,7 +312,9 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
               ),
             ),
             TextFormField(
+              controller: _nicknameController,
               decoration: InputDecoration(),
+              readOnly: true, // Make the TextFormField read-only
             ),
             SizedBox(height: 30),
             Text(
@@ -192,7 +326,9 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
               ),
             ),
             TextFormField(
+              controller: _phoneController,
               decoration: InputDecoration(),
+              readOnly: true, // Make the TextFormField read-only
             ),
             SizedBox(height: 30),
             Text(
@@ -204,13 +340,39 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
               ),
             ),
             TextFormField(
-              decoration: InputDecoration(),
+              controller: _altPhoneController,
+              decoration: InputDecoration(
+                hintText: '010-0000-0000',
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(11),
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) {
+                    String newText = _formatPhoneNumber(newValue.text);
+                    return TextEditingValue(
+                      text: newText,
+                      selection:
+                          TextSelection.collapsed(offset: newText.length),
+                    );
+                  },
+                ),
+              ],
+              keyboardType: TextInputType.number,
+              readOnly: false, // The alternative phone number can be editable
             ),
             SizedBox(height: 100),
             Center(
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/reservationMenu');
+                onPressed: () async {
+                  await _saveReservationInfo();
+                  Navigator.pushNamed(
+                    context,
+                    '/reservationMenu',
+                    arguments: {
+                      'restaurantId': 'YourRestaurantIdHere',
+                    },
+                  );
                 },
                 child: Text('다음'),
                 style: ButtonStyle(

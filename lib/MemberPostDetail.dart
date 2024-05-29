@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PostDetailPage extends StatefulWidget {
   final Map<String, String> post;
@@ -16,19 +18,7 @@ class PostDetailPage extends StatefulWidget {
 }
 
 class _PostDetailPageState extends State<PostDetailPage> {
-  final List<Map<String, String>> comments = [
-    {
-      'author': '최성철',
-      'date': '2024.03.03',
-      'content': '원주 추천해드릴까요?',
-    },
-    {
-      'author': '윤정환',
-      'date': '2024.03.03',
-      'content': '네 좋아요!',
-    },
-  ];
-
+  final List<Map<String, String>> comments = [];
   final TextEditingController _commentController = TextEditingController();
   final List<bool> _isEditing = [];
   final List<TextEditingController> _editControllers = [];
@@ -36,35 +26,118 @@ class _PostDetailPageState extends State<PostDetailPage> {
   bool _isEditingPost = false;
   late TextEditingController _titleController;
   late TextEditingController _contentController;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  User? _currentUser;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.post['title']);
     _contentController = TextEditingController(text: widget.post['content']);
-    for (var comment in comments) {
-      _isEditing.add(false);
-      _editControllers.add(TextEditingController(text: comment['content']));
-    }
-  }
-
-  void addComment() {
-    if (_commentController.text.isNotEmpty) {
+    _auth.authStateChanges().listen((User? user) {
       setState(() {
-        comments.add({
-          'author': '사용자', // 실제 사용자 이름을 사용하도록 수정 필요
-          'date': DateTime.now().toIso8601String().substring(0, 10),
-          'content': _commentController.text,
-        });
-        _isEditing.add(false); // 새 댓글에 대한 수정 모드 추가
-        _editControllers.add(TextEditingController(
-            text: _commentController.text)); // 새 댓글에 대한 컨트롤러 추가
-        _commentController.clear();
+        _currentUser = user;
       });
+    });
+    loadComments();
+  }
+
+  void loadComments() async {
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('community')
+        .doc(widget.post['timestamp'])
+        .collection('comments')
+        .get();
+
+    setState(() {
+      comments.clear();
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        comments.add({
+          'author': data['author'],
+          'date': data['date'],
+          'content': data['content'],
+        });
+        _isEditing.add(false);
+        _editControllers.add(TextEditingController(text: data['content']));
+      }
+    });
+  }
+
+  void addComment() async {
+    if (_currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('로그인해야 댓글을 작성할 수 있습니다.')),
+      );
+      return;
+    }
+
+    if (_commentController.text.isNotEmpty) {
+      final newComment = {
+        'author': _currentUser!.displayName ?? _currentUser!.email ?? 'Unknown',
+        'date': DateTime.now().toIso8601String().substring(0, 10),
+        'content': _commentController.text,
+      };
+
+      try {
+        await FirebaseFirestore.instance
+            .collection('community')
+            .doc(widget.post['timestamp'])
+            .collection('comments')
+            .add(newComment);
+
+        setState(() {
+          comments.add(newComment);
+          _isEditing.add(false);
+          _editControllers
+              .add(TextEditingController(text: _commentController.text));
+          _commentController.clear();
+        });
+      } catch (e) {
+        print('Error adding comment: $e');
+      }
     }
   }
 
-  void deleteComment(int index) {
+  void confirmDeleteComment(int index) async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('댓글 삭제'),
+        content: Text('정말 이 댓글을 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      deleteComment(index);
+    }
+  }
+
+  void deleteComment(int index) async {
+    final comment = comments[index];
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('community')
+        .doc(widget.post['timestamp'])
+        .collection('comments')
+        .where('content', isEqualTo: comment['content'])
+        .where('author', isEqualTo: comment['author'])
+        .where('date', isEqualTo: comment['date'])
+        .get();
+
+    for (var doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+
     setState(() {
       comments.removeAt(index);
       _isEditing.removeAt(index);
@@ -78,9 +151,25 @@ class _PostDetailPageState extends State<PostDetailPage> {
     });
   }
 
-  void saveComment(int index) {
+  void saveComment(int index) async {
+    final comment = comments[index];
+    final updatedContent = _editControllers[index].text;
+
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('community')
+        .doc(widget.post['timestamp'])
+        .collection('comments')
+        .where('content', isEqualTo: comment['content'])
+        .where('author', isEqualTo: comment['author'])
+        .where('date', isEqualTo: comment['date'])
+        .get();
+
+    for (var doc in snapshot.docs) {
+      await doc.reference.update({'content': updatedContent});
+    }
+
     setState(() {
-      comments[index]['content'] = _editControllers[index].text;
+      comments[index]['content'] = updatedContent;
       _isEditing[index] = false;
     });
   }
@@ -91,22 +180,76 @@ class _PostDetailPageState extends State<PostDetailPage> {
     });
   }
 
-  void savePost() {
-    setState(() {
+  void savePost() async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('community')
+          .where('author', isEqualTo: widget.post['author'])
+          .where('title', isEqualTo: widget.post['title'])
+          .get();
+
+      for (DocumentSnapshot doc in snapshot.docs) {
+        await doc.reference.update({
+          'content': _contentController.text,
+        });
+      }
+
       widget.onPostUpdated({
-        'title': _titleController.text,
+        'title': widget.post['title']!,
         'content': _contentController.text,
         'author': widget.post['author']!,
         'date': widget.post['date']!,
         'timestamp': widget.post['timestamp']!,
       });
-      _isEditingPost = false;
-    });
+
+      setState(() {
+        _isEditingPost = false;
+      });
+    } catch (e) {
+      print('Error updating post: $e');
+    }
   }
 
-  void deletePost() {
-    widget.onPostDeleted();
-    Navigator.pop(context);
+  void confirmDeletePost() async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('글 삭제'),
+        content: Text('정말 이 글을 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      deletePost();
+    }
+  }
+
+  void deletePost() async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('community')
+          .where('content', isEqualTo: widget.post['content'])
+          .get();
+
+      for (DocumentSnapshot doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      widget.onPostDeleted();
+      Navigator.pop(context);
+    } catch (e) {
+      print('Error deleting post: $e');
+    }
   }
 
   @override
@@ -126,14 +269,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.post['author'] ?? 'Unknown Author', // 기본값 설정
+                      widget.post['author'] ?? 'Unknown Author',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      widget.post['date'] ?? 'Unknown Date', // 기본값 설정
+                      widget.post['date'] ?? 'Unknown Date',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey,
@@ -148,6 +291,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                 ? TextField(
                     controller: _titleController,
                     decoration: InputDecoration(labelText: 'Title'),
+                    enabled: false, // title은 수정 불가
                   )
                 : Text(
                     widget.post['title']!,
@@ -199,7 +343,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                   SizedBox(width: 10),
                   ElevatedButton(
-                    onPressed: deletePost,
+                    onPressed: confirmDeletePost,
                     child: Text('Delete'),
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.lightBlueAccent,
@@ -286,7 +430,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                 ),
                               ),
                             TextButton(
-                              onPressed: () => deleteComment(index),
+                              onPressed: () => confirmDeleteComment(index),
                               child: Text(
                                 'Delete',
                                 style: TextStyle(color: Colors.grey),
@@ -315,6 +459,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
+                      enabled: _currentUser != null, // 로그인된 사용자만 입력 가능
                     ),
                   ),
                   SizedBox(width: 10),
@@ -322,8 +467,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     onPressed: addComment,
                     child: Text('댓글 달기'),
                     style: ButtonStyle(
-                      backgroundColor:
-                          MaterialStateProperty.all(Colors.lightBlueAccent),
+                      backgroundColor: MaterialStateProperty.all(
+                          _currentUser != null
+                              ? Colors.lightBlueAccent
+                              : Colors.grey),
                       foregroundColor: MaterialStateProperty.all(Colors.white),
                       minimumSize: MaterialStateProperty.all(Size(50, 50)),
                       padding: MaterialStateProperty.all(

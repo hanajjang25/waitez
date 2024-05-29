@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class WritePostPage extends StatefulWidget {
   @override
@@ -8,32 +10,62 @@ class WritePostPage extends StatefulWidget {
 class _WritePostPageState extends State<WritePostPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
-  final TextEditingController _authorController = TextEditingController();
+  final User? currentUser = FirebaseAuth.instance.currentUser;
+  bool _isTitleEmpty = false;
+  bool _isContentEmpty = false;
 
-  void submitPost() {
+  Future<void> submitPost() async {
     final title = _titleController.text;
     final content = _contentController.text;
-    final author = _authorController.text;
 
-    if (title.isNotEmpty && content.isNotEmpty && author.isNotEmpty) {
-      Navigator.pop(context, {
-        'title': title,
-        'content': content,
-        'author': author,
-        'date': DateTime.now().toIso8601String().substring(0, 10),
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Title, content, and author cannot be empty')),
-      );
+    setState(() {
+      _isTitleEmpty = title.isEmpty;
+      _isContentEmpty = content.isEmpty || content.length < 5;
+    });
+
+    if (!_isTitleEmpty && !_isContentEmpty) {
+      if (currentUser != null) {
+        // Firestore에서 현재 사용자 닉네임 가져오기
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser!.uid)
+            .get();
+
+        if (userDoc.exists && userDoc.data() != null) {
+          final nickname = userDoc.get('nickname');
+
+          // Firestore에 게시물 저장
+          await FirebaseFirestore.instance.collection('community').add({
+            'title': title,
+            'content': content,
+            'author': nickname,
+            'email': currentUser!.email,
+            'date': DateTime.now().toIso8601String().substring(0, 10),
+            'timestamp': DateTime.now(),
+          });
+
+          Navigator.pop(context);
+        } else {
+          setState(() {
+            _isTitleEmpty = true;
+            _isContentEmpty = true;
+          });
+        }
+      } else {
+        setState(() {
+          _isTitleEmpty = true;
+          _isContentEmpty = true;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        title: Text('글 작성'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -61,14 +93,16 @@ class _WritePostPageState extends State<WritePostPage> {
             TextField(
               controller: _titleController,
               decoration: InputDecoration(
-                labelText: 'Title',
+                labelText: '제목',
+                errorText: _isTitleEmpty ? '제목을 입력하세요' : null,
               ),
             ),
             SizedBox(height: 20),
             TextField(
               controller: _contentController,
               decoration: InputDecoration(
-                labelText: 'Content',
+                labelText: '내용',
+                errorText: _isContentEmpty ? '내용은 최소 5자 이상이어야 합니다' : null,
               ),
               maxLines: 5,
             ),
@@ -77,8 +111,13 @@ class _WritePostPageState extends State<WritePostPage> {
               onPressed: submitPost,
               child: Text('등록'),
               style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                backgroundColor: !_isTitleEmpty && !_isContentEmpty
+                    ? Colors.lightBlueAccent
+                    : Colors.red,
+              ),
             ),
           ],
         ),

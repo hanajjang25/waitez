@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
@@ -23,9 +22,6 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
   bool _isOpen = false;
   bool _isLoading = true; // 로딩 상태를 나타내는 변수
 
-  final DatabaseReference _database =
-      FirebaseDatabase.instance.ref().child('restaurants');
-
   @override
   void initState() {
     super.initState();
@@ -43,32 +39,37 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
     }
 
     try {
-      // Firestore에서 resNum 가져오기
+      // Firestore에서 닉네임 가져오기
       final firestoreDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
-      final resNum = firestoreDoc.data()?['resNum'] as String?;
+      final nickname = firestoreDoc.data()?['nickname'] as String?;
 
-      if (resNum == null) {
+      if (nickname == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('사용자의 resNum을 찾을 수 없습니다.')),
+          SnackBar(content: Text('사용자의 닉네임을 찾을 수 없습니다.')),
         );
         return;
       }
 
-      // Realtime Database에서 registrationNumber와 일치하는 항목 찾기
-      final event = await _database
-          .orderByChild('registrationNumber')
-          .equalTo(resNum)
-          .once();
-      final snapshot = event.snapshot;
+      print('User nickname: $nickname'); // Debugging
 
-      if (snapshot.value != null) {
-        final restaurantKey = (snapshot.value as Map).keys.first as String;
-        final data = (snapshot.value as Map)[restaurantKey] as Map;
+      // Firestore에서 닉네임과 일치하는 항목 찾기
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .where('nickname', isEqualTo: nickname)
+          .where('isDeleted', isEqualTo: false)
+          .get();
+
+      print('Query result count: ${querySnapshot.docs.length}'); // Debugging
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final doc = querySnapshot.docs.first;
+        final data = doc.data();
+        print('Restaurant data: $data'); // Debugging
         setState(() {
-          _restaurantId = restaurantKey;
+          _restaurantId = doc.id;
           _restaurantName = data['restaurantName'] ?? '';
           _location = data['location'] ?? '';
           _description = data['description'] ?? '';
@@ -87,6 +88,7 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
         });
       }
     } catch (e) {
+      print('Error loading restaurant data: $e'); // 디버깅을 위한 로그 추가
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('데이터를 불러오는 중 오류가 발생했습니다.')),
       );
@@ -103,8 +105,11 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
       // 영업시간을 파싱하여 영업 활성화 여부 결정
       _isOpen = _checkBusinessHours(_businessHours);
 
-      // 데이터를 Firebase Realtime Database에 저장
-      await _database.child(_restaurantId).update({
+      // 데이터를 Firestore에 저장
+      await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(_restaurantId)
+          .update({
         'description': _description,
         'businessHours': _businessHours,
         'photoUrl': _photoUrl,
@@ -122,7 +127,7 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
     }
   }
 
-  Future<void> _deleteAccount() async {
+  Future<void> _markAsDeleted() async {
     setState(() {
       _isLoading = true;
     });
@@ -136,41 +141,22 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
         return;
       }
 
-      // Firestore에서 resNum과 일치하는 문서 삭제
-      final firestoreDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final resNum = firestoreDoc.data()?['resNum'] as String?;
-
-      if (resNum != null) {
-        // Firestore에서 해당 문서 삭제
-        await FirebaseFirestore.instance
-            .collection('restaurants')
-            .where('resNum', isEqualTo: resNum)
-            .get()
-            .then((snapshot) {
-          for (DocumentSnapshot ds in snapshot.docs) {
-            ds.reference.delete();
-          }
-        });
-      }
-
-      // Realtime Database에서 등록번호로 음식점 데이터 삭제
-      await _database.child(_restaurantId).remove();
-
-      // Firebase Authentication에서 사용자 계정 삭제
-      await user.delete();
+      // Firestore에서 해당 음식점 문서를 삭제 상태로 업데이트
+      await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(_restaurantId)
+          .update({'isDeleted': true});
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원탈퇴가 완료되었습니다.')),
+        SnackBar(content: Text('음식점이 삭제되었습니다.')),
       );
 
-      // 회원가입 페이지로 이동
-      Navigator.pushReplacementNamed(context, '/signUp');
+      // homeStaff 페이지로 이동
+      Navigator.pushReplacementNamed(context, '/homeStaff');
     } catch (e) {
+      print('Error marking restaurant as deleted: $e'); // 디버깅을 위한 로그 추가
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원탈퇴 중 오류가 발생했습니다. 다시 시도해주세요.')),
+        SnackBar(content: Text('음식점 삭제 중 오류가 발생했습니다. 다시 시도해주세요.')),
       );
     } finally {
       setState(() {
@@ -199,6 +185,31 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
       // 잘못된 형식의 경우 영업 종료로 간주
       return false;
     }
+  }
+
+  void _showDeleteConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('음식점 삭제'),
+          content: Text('이 음식점을 삭제하시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _markAsDeleted();
+              },
+              child: Text('삭제'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -333,7 +344,7 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                         children: [
                           ElevatedButton(
                             onPressed: () {
-                              Navigator.pushNamed(context, '/MenuRegList');
+                              Navigator.pushNamed(context, '/menuEdit');
                             },
                             child: Text(' + 메뉴 수정'),
                             style: ButtonStyle(
@@ -358,7 +369,7 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton(
-                          onPressed: () {},
+                          onPressed: _showDeleteConfirmationDialog,
                           child: Text(
                             '음식점 삭제',
                             style: TextStyle(

@@ -26,7 +26,7 @@ class menuButtom extends StatelessWidget {
             Navigator.pushNamed(context, '/community');
             break;
           case 4:
-            Navigator.pushNamed(context, '/');
+            Navigator.pushNamed(context, '/profile');
             break;
           default:
         }

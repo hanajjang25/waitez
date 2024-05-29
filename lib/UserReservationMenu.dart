@@ -1,38 +1,131 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'UserCart.dart'; // UserCart 클래스를 import합니다.
 
-class ReservationMenu extends StatefulWidget {
+class UserReservationMenu extends StatefulWidget {
   @override
-  _ReservationMenuState createState() => _ReservationMenuState();
+  _UserReservationMenuState createState() => _UserReservationMenuState();
 }
 
-class _ReservationMenuState extends State<ReservationMenu> {
+class _UserReservationMenuState extends State<UserReservationMenu> {
   bool isFavorite = false;
+  Map<String, dynamic>? restaurantData;
+  List<Map<String, dynamic>> menuItems = [];
+  String? restaurantId;
 
-  final List<Map<String, String>> menuItems = [
-    {'name': '청양김밥', 'price': '3,000원'},
-    {'name': '참치김밥', 'price': '3,000원'},
-  ];
-
-  void toggleFavorite() {
-    setState(() {
-      isFavorite = !isFavorite;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _fetchLatestReservation();
   }
 
-  void navigateToDetails(Map<String, String> menuItem) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MenuDetailsPage(menuItem: menuItem),
-      ),
-    );
+  Future<void> _fetchLatestReservation() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Fetch the most recent reservation for the current user
+        final reservationQuery = await FirebaseFirestore.instance
+            .collection('reservations')
+            .where('nickname', isEqualTo: user.displayName)
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get();
+
+        if (reservationQuery.docs.isNotEmpty) {
+          final reservationDoc = reservationQuery.docs.first;
+          setState(() {
+            restaurantId = reservationDoc['restaurantId'];
+          });
+          // Fetch restaurant details
+          _fetchRestaurantDetails();
+          // Fetch menu items
+          _fetchMenuItems();
+        } else {
+          print('No recent reservation found for this user.');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No recent reservation found.')),
+          );
+        }
+      } else {
+        print('User is not logged in.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('User is not logged in.')),
+        );
+      }
+    } catch (e) {
+      print('Error fetching reservation info: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching reservation info: $e')),
+      );
+    }
+  }
+
+  Future<void> _fetchRestaurantDetails() async {
+    if (restaurantId != null) {
+      try {
+        DocumentSnapshot doc = await FirebaseFirestore.instance
+            .collection('restaurants')
+            .doc(restaurantId)
+            .get();
+        if (doc.exists) {
+          setState(() {
+            restaurantData = doc.data() as Map<String, dynamic>?;
+          });
+        } else {
+          print('Restaurant not found');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Restaurant not found')),
+          );
+        }
+      } catch (e) {
+        print('Error fetching restaurant details: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching restaurant details: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchMenuItems() async {
+    if (restaurantId != null) {
+      try {
+        QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+            .collection('restaurants')
+            .doc(restaurantId)
+            .collection('menus')
+            .get();
+
+        setState(() {
+          menuItems = querySnapshot.docs
+              .map((doc) => doc.data() as Map<String, dynamic>)
+              .toList();
+        });
+      } catch (e) {
+        print('Error fetching menu items: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching menu items: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (restaurantData == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Loading...'),
+        ),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('김밥헤븐 단계점'),
+        title: Text(restaurantData!['restaurantName'] ?? 'Unknown'),
         actions: [
           IconButton(
             icon: Stack(
@@ -40,21 +133,27 @@ class _ReservationMenuState extends State<ReservationMenu> {
               children: [
                 Icon(
                   Icons.star_border,
-                  color: Colors.black, // 테두리 색
+                  color: Colors.black,
                 ),
                 Icon(
                   Icons.star,
-                  color:
-                      isFavorite ? Colors.yellow : Colors.transparent, // 채워진 색
+                  color: isFavorite ? Colors.yellow : Colors.transparent,
                 ),
               ],
             ),
-            onPressed: toggleFavorite,
+            onPressed: () {
+              setState(() {
+                isFavorite = !isFavorite;
+              });
+            },
           ),
           IconButton(
             icon: Icon(Icons.shopping_cart),
             onPressed: () {
-              Navigator.pushNamed(context, '/cart');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Cart()),
+              );
             },
           ),
         ],
@@ -71,7 +170,8 @@ class _ReservationMenuState extends State<ReservationMenu> {
                 height: 201,
                 decoration: BoxDecoration(
                   image: DecorationImage(
-                    image: AssetImage("assets/images/malatang.png"),
+                    image: NetworkImage(restaurantData!['photoUrl'] ?? ''),
+                    fit: BoxFit.cover,
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -79,13 +179,13 @@ class _ReservationMenuState extends State<ReservationMenu> {
             ),
             SizedBox(height: 50),
             Text(
-              '김밥헤븐 단계점',
+              restaurantData!['restaurantName'] ?? 'Unknown',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
                 fontFamily: 'Epilogue',
                 fontWeight: FontWeight.w700,
-                height: 0.07,
+                height: 1.5,
                 letterSpacing: -0.27,
               ),
             ),
@@ -101,14 +201,16 @@ class _ReservationMenuState extends State<ReservationMenu> {
                       fontSize: 18,
                       fontFamily: 'Epilogue',
                       fontWeight: FontWeight.w700,
-                      height: 0.07,
+                      height: 1.5,
                       letterSpacing: -0.27,
                     ),
                   ),
                   SizedBox(width: 20),
-                  Text(
-                    '강원특별자치도 단계동 100-00 1층',
-                    style: TextStyle(fontSize: 16),
+                  Expanded(
+                    child: Text(
+                      restaurantData!['location'] ?? 'Unknown',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ],
               ),
@@ -125,14 +227,16 @@ class _ReservationMenuState extends State<ReservationMenu> {
                       fontSize: 18,
                       fontFamily: 'Epilogue',
                       fontWeight: FontWeight.w700,
-                      height: 0.07,
+                      height: 1.5,
                       letterSpacing: -0.27,
                     ),
                   ),
                   SizedBox(width: 20),
-                  Text(
-                    '10:00 ~ 22:00',
-                    style: TextStyle(fontSize: 16),
+                  Expanded(
+                    child: Text(
+                      restaurantData!['businessHours'] ?? 'Unknown',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ],
               ),
@@ -149,12 +253,36 @@ class _ReservationMenuState extends State<ReservationMenu> {
                 itemBuilder: (context, index) {
                   final menuItem = menuItems[index];
                   return ListTile(
-                    title: Text(menuItem['name']!),
-                    subtitle: Text(menuItem['price']!),
+                    title: Text(menuItem['menuName'] ?? 'Unknown'),
+                    subtitle: Text('${menuItem['price'] ?? '0'}원'),
                     onTap: () => navigateToDetails(menuItem),
                   );
                 },
               ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/waitingNumber');
+                  },
+                  child: Text('예약하기'),
+                  style: ButtonStyle(
+                    backgroundColor:
+                        MaterialStateProperty.all(Color(0xFF1A94FF)),
+                    foregroundColor: MaterialStateProperty.all(Colors.white),
+                    minimumSize: MaterialStateProperty.all(Size(200, 50)),
+                    padding: MaterialStateProperty.all(
+                        EdgeInsets.symmetric(horizontal: 10)),
+                    shape: MaterialStateProperty.all(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                )
+              ],
             ),
             SizedBox(
               height: 100,
@@ -164,32 +292,75 @@ class _ReservationMenuState extends State<ReservationMenu> {
       ),
     );
   }
-}
 
-class MenuDetailsPage extends StatefulWidget {
-  final Map<String, String> menuItem;
-
-  MenuDetailsPage({required this.menuItem});
-
-  @override
-  _MenuDetailsPageState createState() => _MenuDetailsPageState();
-}
-
-class _MenuDetailsPageState extends State<MenuDetailsPage> {
-  int quantity = 1;
-
-  void increaseQuantity() {
-    setState(() {
-      quantity++;
-    });
+  void navigateToDetails(Map<String, dynamic>? menuItem) {
+    if (menuItem != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MenuDetailsPage(
+              menuItem: menuItem,
+              restaurantId: restaurantId), // restaurantId 전달
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Menu item details are missing')),
+      );
+    }
   }
+}
 
-  void decreaseQuantity() {
-    setState(() {
-      if (quantity > 1) {
-        quantity--;
+class MenuDetailsPage extends StatelessWidget {
+  final Map<String, dynamic> menuItem;
+  final String? restaurantId;
+
+  MenuDetailsPage({required this.menuItem, required this.restaurantId});
+
+  Future<void> addToCart(BuildContext context) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Fetch the most recent reservation for the current user
+        final reservationQuery = await FirebaseFirestore.instance
+            .collection('reservations')
+            .where('nickname', isEqualTo: user.displayName)
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get();
+
+        if (reservationQuery.docs.isNotEmpty) {
+          final reservationDoc = reservationQuery.docs.first;
+          final restaurantId = reservationDoc['restaurantId'];
+
+          await FirebaseFirestore.instance.collection('cart').add({
+            'nickname': user.displayName,
+            'restaurantId': restaurantId,
+            'menuItem': menuItem,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('장바구니에 추가되었습니다.')),
+          );
+        } else {
+          print('No recent reservation found for this user.');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No recent reservation found.')),
+          );
+        }
+      } else {
+        print('User is not logged in.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('User is not logged in.')),
+        );
       }
-    });
+    } catch (e) {
+      print('Error adding to cart: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding to cart: $e')),
+      );
+    }
   }
 
   @override
@@ -197,12 +368,12 @@ class _MenuDetailsPageState extends State<MenuDetailsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.menuItem['name']!,
+          menuItem['menuName'] ?? 'Unknown',
           style: TextStyle(
             color: Color(0xFF1C1C21),
             fontSize: 18,
             fontFamily: 'Epilogue',
-            height: 0.07,
+            height: 1.5,
             letterSpacing: -0.27,
             fontWeight: FontWeight.w700,
           ),
@@ -220,7 +391,7 @@ class _MenuDetailsPageState extends State<MenuDetailsPage> {
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
                 fontFamily: 'Epilogue',
-                height: 0.07,
+                height: 1.5,
                 letterSpacing: -0.27,
                 fontWeight: FontWeight.w700,
               ),
@@ -236,7 +407,9 @@ class _MenuDetailsPageState extends State<MenuDetailsPage> {
                 height: 201,
                 decoration: BoxDecoration(
                   image: DecorationImage(
-                    image: AssetImage("assets/images/malatang.png"),
+                    image: NetworkImage(menuItem['photoUrl'] ??
+                        'https://via.placeholder.com/358x201'), // Replace with actual image URL
+                    fit: BoxFit.cover,
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -244,67 +417,42 @@ class _MenuDetailsPageState extends State<MenuDetailsPage> {
             ),
             SizedBox(height: 40),
             Text(
-              widget.menuItem['name']!,
+              menuItem['menuName'] ?? 'Unknown',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 24,
                 fontFamily: 'Epilogue',
-                height: 0.07,
+                height: 1.5,
                 letterSpacing: -0.27,
                 fontWeight: FontWeight.w700,
               ),
             ),
             SizedBox(height: 50),
             Text(
-              '가격: ${widget.menuItem['price']}',
+              '가격: ${menuItem['price'] ?? '0'}원',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 20,
                 fontFamily: 'Epilogue',
-                height: 0.07,
+                height: 1.5,
                 letterSpacing: -0.27,
               ),
             ),
             SizedBox(height: 50),
             Text(
-              '상세 설명을 여기에 추가하세요.',
+              menuItem['description'] ?? '상세 설명이 없습니다.',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
                 fontFamily: 'Epilogue',
-                height: 0.07,
+                height: 1.5,
                 letterSpacing: -0.27,
               ),
-            ),
-            SizedBox(height: 50),
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.remove),
-                  onPressed: decreaseQuantity,
-                ),
-                Text(
-                  '$quantity',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.add),
-                  onPressed: increaseQuantity,
-                ),
-              ],
             ),
             SizedBox(height: 100),
             Center(
               child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('장바구니에 추가되었습니다.')),
-                  );
-                  Navigator.pop(context);
-                },
+                onPressed: () => addToCart(context),
                 child: Text('장바구니에 추가'),
               ),
             ),

@@ -3,64 +3,96 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// 로그인 페이지 위젯 정의
-class login extends StatelessWidget {
+class login extends StatefulWidget {
+  @override
+  _LoginState createState() => _LoginState();
+}
+
+class _LoginState extends State<login> {
   int authWay = 0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   User? user;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 이메일로 로그인하는 메서드 정의
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _isFormValid = false;
+
+  void _updateFormValidity() {
+    setState(() {
+      _isFormValid = _emailController.text.isNotEmpty &&
+          _passwordController.text.isNotEmpty;
+    });
+  }
+
   Future<String> emailLogin({
     required String email,
     required String password,
   }) async {
     try {
-      // Firebase 인증을 사용하여 이메일로 로그인
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: email, password: password);
-
-      // 로그인한 사용자 가져오기
       user = _auth.currentUser;
 
-      // 사용자 리로드 (user가 null이 아닌 경우에만)
       if (user != null) {
         await user!.reload();
         user = _auth.currentUser;
 
-        // 이메일 인증이 완료되었는지 확인
-        if (user!.emailVerified) {
-          user = userCredential.user;
-          authWay = 1;
+        user = userCredential.user;
+        authWay = 1;
 
-          // 로그인 상태 저장
-          await _saveLoginStatus(true);
+        await _saveLoginStatus(true);
+        await _updateLoginState(user!.uid, true); // 로그인 상태 업데이트
 
-          return "success"; // 성공 상태 반환
-        } else {
-          return "emailFail"; // 이메일 인증 실패 상태 반환
-        }
+        return "success";
       } else {
-        return "userNotFound"; // 사용자가 null인 경우
+        return "userNotFound";
       }
     } on FirebaseAuthException catch (e) {
-      print('FirebaseAuthException: ${e.code}');
-      return "fail"; // 실패 상태 반환
+      if (e.code == 'user-not-found') {
+        return "userNotFound";
+      } else if (e.code == 'wrong-password') {
+        return "wrongPassword";
+      }
+      return "fail";
     } catch (e) {
       print('Exception: $e');
-      return "fail"; // 일반 예외에 대한 실패 상태 반환
+      return "fail";
     }
   }
 
-  // 로그인 상태를 저장하는 함수
+  Future<void> _updateLoginState(String userId, bool isLoggedIn) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'isLoggedIn': isLoggedIn,
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating login state: $e');
+    }
+  }
+
   Future<void> _saveLoginStatus(bool isLoggedIn) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', isLoggedIn);
   }
 
-  // TextEditingController 정의
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(_updateFormValidity);
+    _passwordController.addListener(_updateFormValidity);
+  }
+
+  @override
+  void dispose() {
+    _emailController.removeListener(_updateFormValidity);
+    _passwordController.removeListener(_updateFormValidity);
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +151,7 @@ class login extends StatelessWidget {
                                   Navigator.pushNamed(context, '/signup');
                                 },
                                 child: Text(
-                                  'Create Account',
+                                  '회원가입',
                                   style: TextStyle(
                                     color: Color(0xFF89909E),
                                     fontSize: 16,
@@ -135,7 +167,7 @@ class login extends StatelessWidget {
                                 Navigator.pushNamed(context, '/login');
                               },
                               child: Text(
-                                'Login',
+                                '로그인',
                                 style: TextStyle(
                                   color: Color(0xFF1A94FF),
                                   fontSize: 16,
@@ -154,7 +186,7 @@ class login extends StatelessWidget {
                       child: TextField(
                         controller: _emailController,
                         decoration: InputDecoration(
-                          labelText: 'Email Address',
+                          labelText: '이메일',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -166,7 +198,7 @@ class login extends StatelessWidget {
                       child: TextField(
                         controller: _passwordController,
                         decoration: InputDecoration(
-                          labelText: 'Password',
+                          labelText: '비밀번호',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -181,7 +213,7 @@ class login extends StatelessWidget {
                           Navigator.pushNamed(context, '/findPassword');
                         },
                         child: Text(
-                          'Forget password?',
+                          '비밀번호 찾기',
                           style: TextStyle(
                             color: Color(0xFF1A94FF),
                             fontSize: 16,
@@ -193,134 +225,134 @@ class login extends StatelessWidget {
                     ),
                     SizedBox(height: 50),
                     ElevatedButton(
-                      onPressed: () async {
-                        // 입력 값 확인
-                        if (_emailController.text.trim().isEmpty ||
-                            _passwordController.text.trim().isEmpty) {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: Text('Error'),
-                                content:
-                                    Text('Please check email and password'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                    child: Text('OK'),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                          return;
-                        }
-
-                        // 이메일로 로그인 시도
-                        String loginResult = await emailLogin(
-                          email: _emailController.text.trim(),
-                          password: _passwordController.text.trim(),
-                        );
-
-                        if (loginResult == "success") {
-                          // Firestore에서 email과 fullName을 확인하고 resNum 확인
-                          var email = _emailController.text.trim();
-                          var password = _passwordController.text.trim();
-
-                          var userDoc = await _firestore
-                              .collection('users')
-                              .where('email', isEqualTo: email)
-                              .get();
-
-                          if (userDoc.docs.isNotEmpty) {
-                            var userData = userDoc.docs.first.data();
-                            if (userData.containsKey('nickname')) {
-                              if (userData.containsKey('resNum') &&
-                                  userData['resNum'] != null &&
-                                  userData['resNum'].isNotEmpty) {
-                                Navigator.pushNamed(context, '/homeStaff');
-                              } else {
-                                Navigator.pushNamed(context, '/home');
-                              }
-                            } else {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text('Login Error'),
-                                    content: Text('nickname not found.'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                        },
-                                        child: Text('OK'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            }
-                          } else {
-                            showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title: Text('Login Error'),
-                                  content: Text('User document not found.'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                      },
-                                      child: Text('OK'),
-                                    ),
-                                  ],
+                      onPressed: _isFormValid
+                          ? () async {
+                              if (_emailController.text.trim().isEmpty ||
+                                  _passwordController.text.trim().isEmpty) {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text('Error'),
+                                      content: Text(
+                                          'Please check email and password'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: Text('OK'),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 );
-                              },
-                            );
-                          }
-                        } else {
-                          String errorMessage;
-                          switch (loginResult) {
-                            case 'emailFail':
-                              errorMessage = 'Please verify your email first.';
-                              break;
-                            case 'userNotFound':
-                              errorMessage = 'User not found';
-                              break;
-                            case 'fail':
-                            default:
-                              errorMessage = 'Login failed. Please try again.';
-                              break;
-                          }
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: Text('Login Error'),
-                                content: Text(errorMessage),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                    child: Text('OK'),
-                                  ),
-                                ],
+                                return;
+                              }
+
+                              String loginResult = await emailLogin(
+                                email: _emailController.text.trim(),
+                                password: _passwordController.text.trim(),
                               );
-                            },
-                          );
-                        }
-                      },
-                      child: Text('Login'),
+
+                              if (loginResult == "success") {
+                                var email = _emailController.text.trim();
+                                var userDoc = await _firestore
+                                    .collection('users')
+                                    .where('email', isEqualTo: email)
+                                    .get();
+
+                                if (userDoc.docs.isNotEmpty) {
+                                  var userData = userDoc.docs.first.data();
+                                  if (userData.containsKey('nickname')) {
+                                    if (userData.containsKey('resNum') &&
+                                        userData['resNum'] != null &&
+                                        userData['resNum'].isNotEmpty) {
+                                      Navigator.pushNamed(
+                                          context, '/homeStaff');
+                                    } else {
+                                      Navigator.pushNamed(context, '/home');
+                                    }
+                                  } else {
+                                    showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return AlertDialog(
+                                          title: Text('로그인실패'),
+                                          content:
+                                              Text('이메일 및 비밀번호가 일치하지 않습니다.'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.of(context).pop();
+                                              },
+                                              child: Text('OK'),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  }
+                                } else {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text('로그인 오류'),
+                                        content: Text('아이디 및 비밀번호가 일치하지 않습니다.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(context).pop();
+                                            },
+                                            child: Text('OK'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                }
+                              } else {
+                                String errorMessage;
+                                switch (loginResult) {
+                                  case 'userNotFound':
+                                    errorMessage = '회원이 존재하지 않습니다.';
+                                    break;
+                                  case 'wrongPassword':
+                                    errorMessage = '비밀번호가 일치하지 않습니다.';
+                                    break;
+                                  case 'fail':
+                                  default:
+                                    errorMessage = '로그인에 실패하였습니다. 다시 시도하세요.';
+                                    break;
+                                }
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text('로그인 오류'),
+                                      content: Text(errorMessage),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: Text('OK'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                            }
+                          : null,
+                      child: Text('login'),
                       style: ButtonStyle(
-                        backgroundColor:
-                            MaterialStateProperty.all(Color(0xFFF4F4F4)),
-                        foregroundColor:
-                            MaterialStateProperty.all(Colors.black),
+                        backgroundColor: MaterialStateProperty.all(_isFormValid
+                            ? Color(0xFF1A94FF)
+                            : Color(0xFFF4F4F4)),
+                        foregroundColor: MaterialStateProperty.all(
+                            _isFormValid ? Colors.white : Colors.black),
                         minimumSize: MaterialStateProperty.all(Size(200, 50)),
                         padding: MaterialStateProperty.all(
                             EdgeInsets.symmetric(horizontal: 30)),

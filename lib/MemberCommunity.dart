@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'MemberCommunityWrite.dart';
 import 'MemberPostDetail.dart';
 import 'UserBottom.dart';
@@ -9,15 +10,21 @@ class CommunityMainPage extends StatefulWidget {
 }
 
 class _CommunityMainPageState extends State<CommunityMainPage> {
-  final List<Map<String, String>> posts = [
-    {
-      'title': '음식점 추천',
-      'author': '윤정환',
-      'date': '2024.03.03',
-      'content': '음식점 추천 받아요~!!',
-      'timestamp': DateTime.now().toIso8601String()
-    }
-  ];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Future<List<Map<String, String>>> fetchPosts() async {
+    QuerySnapshot snapshot = await _firestore.collection('community').get();
+    return snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return data.map((key, value) {
+        if (value is Timestamp) {
+          // Timestamp를 String으로 변환
+          return MapEntry(key, (value as Timestamp).toDate().toIso8601String());
+        }
+        return MapEntry(key, value.toString());
+      });
+    }).toList();
+  }
 
   void navigateToWritePost() async {
     final result = await Navigator.push(
@@ -29,7 +36,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
 
     if (result != null && result is Map<String, String>) {
       setState(() {
-        posts.insert(0, result); // 새 게시글을 리스트의 맨 앞에 삽입
+        fetchPosts(); // Fetch posts again to include the new one
       });
     }
   }
@@ -42,13 +49,12 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           post: post,
           onPostDeleted: () {
             setState(() {
-              posts.remove(post);
+              fetchPosts(); // Fetch posts again to exclude the deleted one
             });
           },
           onPostUpdated: (updatedPost) {
             setState(() {
-              int index = posts.indexOf(post);
-              posts[index] = updatedPost;
+              fetchPosts(); // Fetch posts again to include the updated one
             });
           },
         ),
@@ -66,44 +72,74 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
       body: Padding(
         padding: EdgeInsets.all(16),
-        child: Column(children: [
-          SizedBox(height: 30),
-          Container(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '커뮤니티',
-              style: TextStyle(
-                color: Color(0xFF1C1C21),
-                fontSize: 18,
-                fontFamily: 'Epilogue',
-                fontWeight: FontWeight.w700,
-                height: 0.07,
-                letterSpacing: -0.27,
+        child: Column(
+          children: [
+            SizedBox(height: 30),
+            Container(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '커뮤니티',
+                style: TextStyle(
+                  color: Color(0xFF1C1C21),
+                  fontSize: 18,
+                  fontFamily: 'Epilogue',
+                  fontWeight: FontWeight.w700,
+                  height: 1.5,
+                  letterSpacing: -0.27,
+                ),
               ),
             ),
-          ),
-          SizedBox(height: 30),
-          Container(
-              width: 500, child: Divider(color: Colors.black, thickness: 2.0)),
-          Expanded(
-            child: ListView.builder(
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                final post = posts[index];
-                return ListTile(
-                  title: Text(post['title']!),
-                  subtitle: Text(
-                      formatTimestamp(post['timestamp']!)), // 업데이트: 작성 시간 포맷팅
-                  trailing: Text(post['author']!), // 추가: 작성자 표시
-                  onTap: () => navigateToPostDetail(post),
-                );
-              },
+            SizedBox(height: 30),
+            Container(
+                width: 500,
+                child: Divider(color: Colors.black, thickness: 1.0)),
+            Expanded(
+              child: FutureBuilder<List<Map<String, String>>>(
+                future: fetchPosts(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(child: Text('No posts found'));
+                  } else {
+                    final posts = snapshot.data!;
+                    return ListView.builder(
+                      itemCount: posts.length,
+                      itemBuilder: (context, index) {
+                        final post = posts[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.symmetric(vertical: 8.0),
+                          title: Text(post['title']!,
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          subtitle: Text(formatTimestamp(post['timestamp']!),
+                              style: TextStyle(color: Colors.grey)),
+                          trailing: Text(post['author']!,
+                              style: TextStyle(color: Colors.grey)),
+                          onTap: () => navigateToPostDetail(post),
+                        );
+                      },
+                    );
+                  }
+                },
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
       floatingActionButton: Container(
         alignment: Alignment.bottomCenter,

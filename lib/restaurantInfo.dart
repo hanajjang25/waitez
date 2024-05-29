@@ -1,17 +1,96 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'UserReservation.dart'; // UserReservation 클래스를 임포트
 
 class RestaurantInfo extends StatefulWidget {
+  final String restaurantId;
+
+  RestaurantInfo({required this.restaurantId, Key? key}) : super(key: key);
+
   @override
   _RestaurantInfoState createState() => _RestaurantInfoState();
 }
 
 class _RestaurantInfoState extends State<RestaurantInfo> {
   bool isFavorite = false;
+  Map<String, dynamic>? restaurantData;
+  List<Map<String, dynamic>> menuItems = [];
+  String? userNickname;
 
-  final List<Map<String, String>> menuItems = [
-    {'name': '청양김밥', 'price': '3,000원'},
-    {'name': '참치김밥', 'price': '3,000원'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchRestaurantDetails();
+    _fetchMenuItems();
+    _fetchUserNickname();
+  }
+
+  Future<void> _fetchUserNickname() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          setState(() {
+            userNickname = userDoc['nickname'];
+          });
+        } else {
+          print('User not found');
+        }
+      }
+    } catch (e) {
+      print('Error fetching user nickname: $e');
+    }
+  }
+
+  Future<void> _fetchRestaurantDetails() async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(widget.restaurantId)
+          .get();
+      if (doc.exists) {
+        setState(() {
+          restaurantData = doc.data() as Map<String, dynamic>?;
+        });
+      } else {
+        print('Restaurant not found');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Restaurant not found')),
+        );
+      }
+    } catch (e) {
+      print('Error fetching restaurant details: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching data: $e')),
+      );
+    }
+  }
+
+  Future<void> _fetchMenuItems() async {
+    try {
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(widget.restaurantId)
+          .collection('menus')
+          .get();
+
+      setState(() {
+        menuItems = querySnapshot.docs
+            .map((doc) => doc.data() as Map<String, dynamic>)
+            .toList();
+      });
+    } catch (e) {
+      print('Error fetching menu items: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching menu items: $e')),
+      );
+    }
+  }
 
   void toggleFavorite() {
     setState(() {
@@ -19,7 +98,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
     });
   }
 
-  void navigateToDetails(Map<String, String> menuItem) {
+  void navigateToDetails(Map<String, dynamic> menuItem) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -28,11 +107,52 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
     );
   }
 
+  Future<void> _saveReservation() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && userNickname != null) {
+        await FirebaseFirestore.instance.collection('reservations').add({
+          'userId': user.uid,
+          'nickname': userNickname,
+          'restaurantId': widget.restaurantId,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reservation saved successfully')),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Reservation()),
+        ); // 예약하기 버튼 클릭 시 UserReservation 화면으로 이동
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('User not found or nickname missing')),
+        );
+      }
+    } catch (e) {
+      print('Error saving reservation: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving reservation: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (restaurantData == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Loading...'),
+        ),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('김밥헤븐 단계점'),
+        title: Text(restaurantData!['restaurantName'] ?? 'Unknown'),
         actions: [
           IconButton(
             icon: Stack(
@@ -40,12 +160,11 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
               children: [
                 Icon(
                   Icons.star_border,
-                  color: Colors.black, // 테두리 색
+                  color: Colors.black,
                 ),
                 Icon(
                   Icons.star,
-                  color:
-                      isFavorite ? Colors.yellow : Colors.transparent, // 채워진 색
+                  color: isFavorite ? Colors.yellow : Colors.transparent,
                 ),
               ],
             ),
@@ -69,7 +188,8 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                 height: 201,
                 decoration: BoxDecoration(
                   image: DecorationImage(
-                    image: AssetImage("assets/images/malatang.png"),
+                    image: NetworkImage(restaurantData!['photoUrl'] ?? ''),
+                    fit: BoxFit.cover,
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -77,7 +197,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
             ),
             SizedBox(height: 50),
             Text(
-              '김밥헤븐 단계점',
+              restaurantData!['restaurantName'] ?? 'Unknown',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
@@ -105,7 +225,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                   ),
                   SizedBox(width: 20),
                   Text(
-                    '강원특별자치도 단계동 100-00 1층',
+                    restaurantData!['location'] ?? 'Unknown',
                     style: TextStyle(fontSize: 16),
                   ),
                 ],
@@ -129,7 +249,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                   ),
                   SizedBox(width: 20),
                   Text(
-                    '10:00 ~ 22:00',
+                    restaurantData!['businessHours'] ?? 'Unknown',
                     style: TextStyle(fontSize: 16),
                   ),
                 ],
@@ -147,8 +267,8 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                 itemBuilder: (context, index) {
                   final menuItem = menuItems[index];
                   return ListTile(
-                    title: Text(menuItem['name']!),
-                    subtitle: Text(menuItem['price']!),
+                    title: Text(menuItem['menuName'] ?? 'Unknown'),
+                    subtitle: Text('${menuItem['price'] ?? '0'}원'),
                     onTap: () => navigateToDetails(menuItem),
                   );
                 },
@@ -158,9 +278,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/reservation');
-                  },
+                  onPressed: _saveReservation, // 예약하기 버튼 클릭 시 예약 정보 저장 및 화면 전환
                   child: Text('예약하기'),
                   style: ButtonStyle(
                     backgroundColor:
@@ -189,7 +307,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
 }
 
 class MenuDetailsPage extends StatelessWidget {
-  final Map<String, String> menuItem;
+  final Map<String, dynamic> menuItem;
 
   MenuDetailsPage({required this.menuItem});
 
@@ -198,7 +316,7 @@ class MenuDetailsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          menuItem['name']!,
+          menuItem['menuName'] ?? 'Unknown',
           style: TextStyle(
             color: Color(0xFF1C1C21),
             fontSize: 18,
@@ -237,7 +355,8 @@ class MenuDetailsPage extends StatelessWidget {
                 height: 201,
                 decoration: BoxDecoration(
                   image: DecorationImage(
-                    image: AssetImage("assets/images/malatang.png"),
+                    image: NetworkImage(menuItem['photoUrl'] ?? ''),
+                    fit: BoxFit.cover,
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -245,7 +364,7 @@ class MenuDetailsPage extends StatelessWidget {
             ),
             SizedBox(height: 40),
             Text(
-              menuItem['name']!,
+              menuItem['menuName'] ?? 'Unknown',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 24,
@@ -257,7 +376,7 @@ class MenuDetailsPage extends StatelessWidget {
             ),
             SizedBox(height: 50),
             Text(
-              '가격: ${menuItem['price']}',
+              '가격: ${menuItem['price'] ?? '0'}원',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 20,
@@ -268,7 +387,7 @@ class MenuDetailsPage extends StatelessWidget {
             ),
             SizedBox(height: 50),
             Text(
-              '상세 설명을 여기에 추가하세요.',
+              menuItem['description'] ?? '상세 설명이 없습니다.',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,

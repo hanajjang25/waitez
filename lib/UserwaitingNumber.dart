@@ -1,563 +1,160 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'UserBottom.dart';
+import 'UserWaitingDetail.dart';
 
-class waitingNumber extends StatelessWidget {
+class waitingNumber extends StatefulWidget {
+  @override
+  _WaitingNumberState createState() => _WaitingNumberState();
+}
+
+class _WaitingNumberState extends State<waitingNumber> {
+  int storeQueueNumber = 13;
+  int takeoutQueueNumber1 = 2;
+  int takeoutQueueNumber2 = 0;
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: MediaQuery.of(context).size.width,
-          height: MediaQuery.of(context).size.height,
-          clipBehavior: Clip.antiAlias,
-          decoration: ShapeDecoration(
-            color: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(Icons.person),
+            Text('대기순번', style: TextStyle(color: Colors.black)),
+            Icon(Icons.menu),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '매장',
+              style: TextStyle(
+                color: Color(0xFF1C1C21),
+                fontSize: 18,
+                fontFamily: 'Epilogue',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Divider(color: Colors.black, thickness: 2.0),
+            _buildQueueCard(
+              context,
+              '매장',
+              storeQueueNumber,
+              '김밥헤븐 단계점',
+              '강원도 원주시 단계동 100-0 1층',
+              [
+                {'name': '청양김밥', 'price': 3000, 'quantity': 1},
+                {'name': '청양김밥', 'price': 3000, 'quantity': 1},
+              ],
+            ), // 대기순번 목록한개 card
+            SizedBox(height: 20),
+            Text(
+              '포장',
+              style: TextStyle(
+                color: Color(0xFF1C1C21),
+                fontSize: 18,
+                fontFamily: 'Epilogue',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Divider(color: Colors.black, thickness: 2.0),
+            _buildQueueCard(
+              context,
+              '포장',
+              takeoutQueueNumber1,
+              '까눌레네 단계점',
+              '강원도 원주시 단계동 200-0 2층',
+              [
+                {'name': '까눌레', 'price': 2000, 'quantity': 3},
+              ],
+            ),
+            SizedBox(height: 20),
+            _buildQueueCard(
+              context,
+              '포장',
+              takeoutQueueNumber2,
+              '케이키 단계점',
+              '강원도 원주시 단계동 300-0 3층',
+              [
+                {'name': '케이크', 'price': 5000, 'quantity': 2},
+              ],
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: menuButtom(),
+    );
+  }
+
+  Widget _buildQueueCard(
+    BuildContext context,
+    String type,
+    int number,
+    String description,
+    String address,
+    List<Map<String, dynamic>> orderItems,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => waitingDetail(
+              restaurantName: description,
+              restaurantAddress: address,
+              queueNumber: number,
+              orderItems: orderItems,
             ),
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 80),
-                top: 99,
-                child: Container(
-                  width: 20,
-                  height: 11,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        child: Container(
-                          width: 20,
-                          decoration: ShapeDecoration(
-                            shape: RoundedRectangleBorder(
-                              side: BorderSide(
-                                width: 1,
-                                strokeAlign: BorderSide.strokeAlignCenter,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        top: 6,
-                        child: Container(
-                          width: 20,
-                          decoration: ShapeDecoration(
-                            shape: RoundedRectangleBorder(
-                              side: BorderSide(
-                                width: 1,
-                                strokeAlign: BorderSide.strokeAlignCenter,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+        );
+      },
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        elevation: 4,
+        child: Container(
+          height: 80, // 카드의 높이를 설정
+          padding: EdgeInsets.all(8.0),
+          child: ListTile(
+            leading: Container(
+              height: 50,
+              width: 50,
+              padding: EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.lightBlueAccent[100],
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: Center(
+                child: Text(
+                  number.toString(),
+                  style: TextStyle(
+                    color: Color(0xFF1C1C21),
+                    fontSize: 18,
+                    fontFamily: 'Epilogue',
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 210),
-                top: 90,
-                child: Container(
-                  width: 36.43,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: NetworkImage("https://via.placeholder.com/36x30"),
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                ),
+            ),
+            title: Text(
+              description,
+              style: TextStyle(
+                color: Color(0xFF1C1C21),
+                fontSize: 18,
+                fontFamily: 'Epilogue',
               ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 180),
-                top: 92,
-                child: SizedBox(
-                  width: 69,
-                  height: 28,
-                  child: Text(
-                    '최승철',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w700,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 100),
-                top: 110,
-                child: Transform(
-                  transform: Matrix4.identity()
-                    ..translate(0.0, 0.0)
-                    ..rotateZ(-3.14),
-                  child: Container(
-                    width: 15,
-                    height: 15,
-                    decoration: ShapeDecoration(
-                      color: Color(0xFFD9D9D9),
-                      shape: StarBorder.polygon(sides: 3),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 435),
-                top: (MediaQuery.of(context).size.height - 70),
-                child: Container(
-                  width: 100,
-                  height: 60.08,
-                  decoration: ShapeDecoration(
-                    color: Color(0xFFFFFDCD),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 330),
-                top: (MediaQuery.of(context).size.height - 70),
-                child: Container(
-                  width: 100,
-                  height: 60.08,
-                  decoration: ShapeDecoration(
-                    color: Color(0xFFFFFDCD),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 225),
-                top: (MediaQuery.of(context).size.height - 70),
-                child: Container(
-                  width: 100,
-                  height: 60.08,
-                  decoration: ShapeDecoration(
-                    color: Color(0xFFFFFDCD),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 120),
-                top: (MediaQuery.of(context).size.height - 70),
-                child: Container(
-                  width: 100,
-                  height: 60.08,
-                  decoration: ShapeDecoration(
-                    color: Color(0xFFFFFDCD),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 430),
-                top: (MediaQuery.of(context).size.height - 50),
-                child: SizedBox(
-                  width: 90,
-                  height: 41,
-                  child: Text(
-                    '대기순번',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w900,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 325),
-                top: (MediaQuery.of(context).size.height - 50),
-                child: SizedBox(
-                  width: 90,
-                  height: 41,
-                  child: Text(
-                    '이력조회',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w900,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 220),
-                top: (MediaQuery.of(context).size.height - 50),
-                child: SizedBox(
-                  width: 90,
-                  height: 41,
-                  child: Text(
-                    '커뮤니티',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w900,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 115),
-                top: (MediaQuery.of(context).size.height - 50),
-                child: SizedBox(
-                  width: 90,
-                  height: 41,
-                  child: Text(
-                    '즐겨찾기',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w900,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 400),
-                top: (MediaQuery.of(context).size.height - 680),
-                child: Container(
-                  width: 330,
-                  height: 70,
-                  decoration: ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(width: 1),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 400),
-                top: (MediaQuery.of(context).size.height - 480),
-                child: Container(
-                  width: 330,
-                  height: 70,
-                  decoration: ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(width: 1),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 400),
-                top: (MediaQuery.of(context).size.height - 400),
-                child: Container(
-                  width: 330,
-                  height: 70,
-                  decoration: ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(width: 1),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 390),
-                top: (MediaQuery.of(context).size.height - 670),
-                child: Container(
-                  width: 58,
-                  height: 53,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        child: Container(
-                          width: 58,
-                          height: 53,
-                          decoration: ShapeDecoration(
-                            color: Color(0xFFFFFDCD),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(5)),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 10,
-                        top: 12,
-                        child: SizedBox(
-                          width: 38,
-                          height: 35,
-                          child: Text(
-                            '13',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 20,
-                              fontFamily: 'Noto Sans KR',
-                              fontWeight: FontWeight.w900,
-                              height: 0,
-                              letterSpacing: -0.30,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 300),
-                top: (MediaQuery.of(context).size.height - 655),
-                child: SizedBox(
-                  width: 130,
-                  height: 30,
-                  child: Text(
-                    '김밥헤븐 단계점',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w500,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 390),
-                top: (MediaQuery.of(context).size.height - 473),
-                child: Container(
-                  width: 58,
-                  height: 53,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        child: Container(
-                          width: 58,
-                          height: 53,
-                          decoration: ShapeDecoration(
-                            color: Color(0xFFFFFDCD),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(5)),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 10,
-                        top: 9,
-                        child: SizedBox(
-                          width: 38,
-                          height: 35,
-                          child: Text(
-                            '2',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 20,
-                              fontFamily: 'Noto Sans KR',
-                              fontWeight: FontWeight.w900,
-                              height: 0,
-                              letterSpacing: -0.30,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 300),
-                top: (MediaQuery.of(context).size.height - 460),
-                child: SizedBox(
-                  width: 130,
-                  height: 30,
-                  child: Text(
-                    '까눌렜네 단계점',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w500,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 390),
-                top: (MediaQuery.of(context).size.height - 390),
-                child: Container(
-                  width: 58,
-                  height: 53,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        child: Container(
-                          width: 58,
-                          height: 53,
-                          decoration: ShapeDecoration(
-                            color: Color(0xFFFFFDCD),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(5)),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 10,
-                        top: 9,
-                        child: SizedBox(
-                          width: 38,
-                          height: 35,
-                          child: Text(
-                            '0',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 20,
-                              fontFamily: 'Noto Sans KR',
-                              fontWeight: FontWeight.w900,
-                              height: 0,
-                              letterSpacing: -0.30,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 300),
-                top: (MediaQuery.of(context).size.height - 378),
-                child: SizedBox(
-                  width: 130,
-                  height: 30,
-                  child: Text(
-                    '케이키 단계점',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w500,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 400),
-                top: (MediaQuery.of(context).size.height - 750),
-                child: SizedBox(
-                  width: 69,
-                  height: 28,
-                  child: Text(
-                    '매장',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w700,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 410),
-                top: (MediaQuery.of(context).size.height - 700),
-                child: Container(
-                  width: 350,
-                  decoration: ShapeDecoration(
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(
-                        width: 1,
-                        strokeAlign: BorderSide.strokeAlignCenter,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 400),
-                top: (MediaQuery.of(context).size.height - 550),
-                child: SizedBox(
-                  width: 69,
-                  height: 28,
-                  child: Text(
-                    '포장',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontFamily: 'Noto Sans KR',
-                      fontWeight: FontWeight.w700,
-                      height: 0,
-                      letterSpacing: -0.30,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: (MediaQuery.of(context).size.width - 410),
-                top: (MediaQuery.of(context).size.height - 500),
-                child: Container(
-                  width: 350,
-                  decoration: ShapeDecoration(
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(
-                        width: 1,
-                        strokeAlign: BorderSide.strokeAlignCenter,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

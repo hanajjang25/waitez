@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
+import 'UserHome.dart'; // UserHome 클래스를 import
 
 class memberInfo extends StatefulWidget {
   @override
@@ -10,11 +12,9 @@ class memberInfo extends StatefulWidget {
 class _MemberInfoState extends State<memberInfo> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _phoneVerificationController =
-      TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
@@ -40,7 +40,7 @@ class _MemberInfoState extends State<memberInfo> {
           Map<String, dynamic> userData =
               userDoc.data() as Map<String, dynamic>;
           setState(() {
-            _nameController.text = userData['fullName'] ?? '';
+            _nicknameController.text = userData['nickname'] ?? '';
             _emailController.text = userData['email'] ?? '';
             _phoneController.text = userData['phoneNum'] ?? '';
             _businessNumberController.text = userData['resNum'] ?? '';
@@ -71,6 +71,70 @@ class _MemberInfoState extends State<memberInfo> {
         print('Failed to delete user account: $e');
       }
     }
+  }
+
+  Future<void> _updateUserInfo() async {
+    if (_validateForm()) {
+      User? user = _auth.currentUser;
+      if (user != null) {
+        try {
+          Map<String, dynamic> updateData = {
+            'phoneNum': _phoneController.text,
+            'resNum': _businessNumberController.text,
+          };
+
+          if (_passwordController.text.isNotEmpty) {
+            await user.updatePassword(_passwordController.text);
+          }
+
+          await _firestore.collection('users').doc(user.uid).update(updateData);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('정보가 성공적으로 업데이트되었습니다.')),
+          );
+
+          // 모든 작업이 완료되면 UserHome 페이지로 이동
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => home()),
+          );
+        } catch (e) {
+          print('Failed to update user info: $e');
+        }
+      }
+    }
+  }
+
+  bool _validateForm() {
+    if (!_validatePhone(_phoneController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('전화번호 형식이 올바르지 않습니다.')),
+      );
+      return false;
+    }
+
+    if (_passwordController.text.isNotEmpty) {
+      if (_passwordController.text.length < 6 ||
+          !_passwordController.text.contains(RegExp(r'[a-z]'))) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('비밀번호는 6글자 이상이며 영어 소문자를 포함해야 합니다.')),
+        );
+        return false;
+      }
+
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('비밀번호가 일치하지 않습니다.')),
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool _validatePhone(String phone) {
+    return RegExp(r'^\d{3}-\d{3,4}-\d{4}$').hasMatch(phone);
   }
 
   @override
@@ -115,7 +179,7 @@ class _MemberInfoState extends State<memberInfo> {
                 ),
                 SizedBox(height: 30),
                 Text(
-                  '이름',
+                  '닉네임',
                   style: TextStyle(
                     color: Color(0xFF1C1C21),
                     fontSize: 18,
@@ -125,8 +189,9 @@ class _MemberInfoState extends State<memberInfo> {
                   ),
                 ),
                 TextFormField(
-                  controller: _nameController,
+                  controller: _nicknameController,
                   decoration: InputDecoration(),
+                  readOnly: true,
                 ),
                 SizedBox(height: 50),
                 Text(
@@ -157,7 +222,20 @@ class _MemberInfoState extends State<memberInfo> {
                 ),
                 TextFormField(
                   controller: _phoneController,
-                  decoration: InputDecoration(),
+                  decoration: InputDecoration(
+                    hintText: '010-1234-5678',
+                  ),
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: <TextInputFormatter>[
+                    FilteringTextInputFormatter.digitsOnly,
+                    PhoneNumberFormatter(),
+                  ],
+                  validator: (value) {
+                    if (!_validatePhone(value!)) {
+                      return '전화번호 형식이 올바르지 않습니다.';
+                    }
+                    return null;
+                  },
                 ),
                 SizedBox(height: 50),
                 Text(
@@ -187,6 +265,14 @@ class _MemberInfoState extends State<memberInfo> {
                     ),
                   ),
                   obscureText: _isPasswordObscured,
+                  validator: (value) {
+                    if (value!.isNotEmpty &&
+                        (value.length < 6 ||
+                            !value.contains(RegExp(r'[a-z]')))) {
+                      return '비밀번호는 6글자 이상이며 영어 소문자를 포함해야 합니다.';
+                    }
+                    return null;
+                  },
                 ),
                 SizedBox(height: 50),
                 Text(
@@ -217,6 +303,12 @@ class _MemberInfoState extends State<memberInfo> {
                     ),
                   ),
                   obscureText: _isConfirmPasswordObscured,
+                  validator: (value) {
+                    if (value != _passwordController.text) {
+                      return '비밀번호가 일치하지 않습니다.';
+                    }
+                    return null;
+                  },
                 ),
                 SizedBox(height: 50),
                 Text(
@@ -280,9 +372,7 @@ class _MemberInfoState extends State<memberInfo> {
                 ),
                 SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () {
-                    // 수정 기능 추가
-                  },
+                  onPressed: _updateUserInfo,
                   child: Text('수정'),
                 ),
               ],
@@ -290,6 +380,28 @@ class _MemberInfoState extends State<memberInfo> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class PhoneNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final text = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < text.length; i++) {
+      if (i == 3 || i == 7) {
+        buffer.write('-');
+      }
+      buffer.write(text[i]);
+    }
+
+    final formattedText = buffer.toString();
+    return newValue.copyWith(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: formattedText.length),
     );
   }
 }

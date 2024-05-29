@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
-import 'MenuRegOne.dart';
 
 class regRestaurant extends StatefulWidget {
   const regRestaurant({super.key});
@@ -22,11 +21,31 @@ class _RegRestaurantState extends State<regRestaurant> {
   String _registrationNumber = '';
   String _businessHours = '';
   String _photoUrl = '';
+  String _nickname = '';
   bool _isOpen = false;
   File? _imageFile;
 
-  final DatabaseReference _databaseRef =
-      FirebaseDatabase.instance.ref().child('restaurants');
+  final CollectionReference _collectionRef =
+      FirebaseFirestore.instance.collection('restaurants');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNickname();
+  }
+
+  Future<void> _loadNickname() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      setState(() {
+        _nickname = userDoc['nickname'];
+      });
+    }
+  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -40,11 +59,16 @@ class _RegRestaurantState extends State<regRestaurant> {
   }
 
   Future<String> _uploadImage(File image) async {
-    final storageRef = FirebaseStorage.instance.ref();
-    final imageRef = storageRef.child(
-        'restaurant_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
-    await imageRef.putFile(image);
-    return await imageRef.getDownloadURL();
+    try {
+      final storageRef = FirebaseStorage.instance.ref();
+      final imageRef = storageRef.child(
+          'restaurant_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await imageRef.putFile(image);
+      return await imageRef.getDownloadURL();
+    } catch (e) {
+      print('Image upload error: $e');
+      return '';
+    }
   }
 
   void _submitForm() async {
@@ -53,6 +77,12 @@ class _RegRestaurantState extends State<regRestaurant> {
 
       if (_imageFile != null) {
         _photoUrl = await _uploadImage(_imageFile!);
+        if (_photoUrl.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('사진 업로드 중 오류가 발생했습니다. 다시 시도해주세요.')),
+          );
+          return;
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('사진을 업로드해주세요.')),
@@ -60,40 +90,48 @@ class _RegRestaurantState extends State<regRestaurant> {
         return;
       }
 
-      // 중복된 음식점 이름이 있는지 확인
-      final DataSnapshot snapshot = await _databaseRef
-          .orderByChild('restaurantName')
-          .equalTo(_restaurantName)
-          .get();
-      if (snapshot.exists) {
+      try {
+        // 중복된 음식점 이름이 있는지 확인
+        final QuerySnapshot snapshot = await _collectionRef
+            .where('restaurantName', isEqualTo: _restaurantName)
+            .get();
+        if (snapshot.docs.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('이미 등록된 음식점 이름입니다.')),
+          );
+          return;
+        }
+
+        // 영업시간을 파싱하여 영업 활성화 여부 결정
+        _isOpen = _checkBusinessHours(_businessHours);
+
+        // 데이터를 Cloud Firestore에 저장
+        await _collectionRef.add({
+          'restaurantName': _restaurantName,
+          'location': _location,
+          'description': _description,
+          'registrationNumber': _registrationNumber,
+          'businessHours': _businessHours,
+          'photoUrl': _photoUrl,
+          'isOpen': _isOpen,
+          'nickname': _nickname,
+          'isDeleted': false,
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('이미 등록된 음식점 이름입니다.')),
+          SnackBar(content: Text('음식점 등록 완료!')),
         );
-        return;
+
+        // 3초 후에 직원 home 페이지로 이동
+        Future.delayed(Duration(seconds: 3), () {
+          Navigator.pushNamed(context, '/homeStaff');
+        });
+      } catch (e) {
+        print('Error adding restaurant: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('음식점 등록 중 오류가 발생했습니다. 다시 시도해주세요.')),
+        );
       }
-
-      // 영업시간을 파싱하여 영업 활성화 여부 결정
-      _isOpen = _checkBusinessHours(_businessHours);
-
-      // 데이터를 Realtime Database에 저장
-      await _databaseRef.push().set({
-        'restaurantName': _restaurantName,
-        'location': _location,
-        'description': _description,
-        'registrationNumber': _registrationNumber,
-        'businessHours': _businessHours,
-        'photoUrl': _photoUrl,
-        'isOpen': _isOpen,
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('음식점 등록 완료!')),
-      );
-
-      // 3초 후에 직원 home 페이지로 이동
-      Future.delayed(Duration(seconds: 3), () {
-        Navigator.pushNamed(context, '/homeStaff');
-      });
     }
   }
 
