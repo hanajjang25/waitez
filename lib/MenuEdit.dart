@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'MenuEditDetail.dart';
+import 'MenuEditDetail.dart' as detail; // Prefix for MenuEditDetail
+import 'menu_item.dart' as item; // Prefix for MenuItem class
 
 class MenuEdit extends StatefulWidget {
   @override
@@ -9,7 +10,10 @@ class MenuEdit extends StatefulWidget {
 }
 
 class _MenuEditState extends State<MenuEdit> {
-  late Future<List<MenuItem>> _menuItemsFuture;
+  late Future<List<item.MenuItem>> _menuItemsFuture; // Use prefixed class name
+  List<item.MenuItem> _allMenuItems = [];
+  List<item.MenuItem> _filteredMenuItems = [];
+  String? _searchKeyword;
 
   @override
   void initState() {
@@ -17,7 +21,7 @@ class _MenuEditState extends State<MenuEdit> {
     _menuItemsFuture = _loadMenuItems();
   }
 
-  Future<List<MenuItem>> _loadMenuItems() async {
+  Future<List<item.MenuItem>> _loadMenuItems() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final userDocRef =
@@ -41,8 +45,13 @@ class _MenuEditState extends State<MenuEdit> {
               .get();
 
           final menuItems = menuItemsQuery.docs
-              .map((menuDoc) => MenuItem.fromDocument(menuDoc))
+              .map((menuDoc) => item.MenuItem.fromDocument(menuDoc))
               .toList();
+
+          setState(() {
+            _allMenuItems = menuItems;
+            _filteredMenuItems = menuItems;
+          });
 
           return menuItems;
         }
@@ -51,90 +60,108 @@ class _MenuEditState extends State<MenuEdit> {
     return [];
   }
 
+  void _filterItems() {
+    List<item.MenuItem> results = _allMenuItems;
+    if (_searchKeyword != null && _searchKeyword!.isNotEmpty) {
+      results = results.where((item) {
+        return item.name
+                .toLowerCase()
+                .contains(_searchKeyword!.toLowerCase()) ||
+            item.description
+                .toLowerCase()
+                .contains(_searchKeyword!.toLowerCase());
+      }).toList();
+    }
+
+    setState(() {
+      _filteredMenuItems = results;
+    });
+  }
+
+  void _updateSearch(String search) {
+    setState(() {
+      _searchKeyword = search;
+      _filterItems();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('메뉴 수정'),
       ),
-      body: FutureBuilder<List<MenuItem>>(
+      body: FutureBuilder<List<item.MenuItem>>(
         future: _menuItemsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('등록된 메뉴가 없습니다.'));
-          } else {
-            final menuItems = snapshot.data!;
-            return Column(children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: '검색',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    onChanged: (value) => _updateSearch(value),
+                    decoration: InputDecoration(
+                      hintText: '검색',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: menuItems.length,
-                  itemBuilder: (context, index) {
-                    final menuItem = menuItems[index];
-                    return ListTile(
-                      leading: Icon(Icons.fastfood),
-                      title: Text(menuItem.name),
-                      subtitle: Text('가격: ${menuItem.price}원'),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                MenuEditDetail(menuItemId: menuItem.id),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                Expanded(
+                  child: Center(
+                    child: Text('등록된 메뉴가 없습니다.'),
+                  ),
                 ),
-              ),
-            ]);
+              ],
+            );
+          } else {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    onChanged: (value) => _updateSearch(value),
+                    decoration: InputDecoration(
+                      hintText: '검색',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _filteredMenuItems.length,
+                    itemBuilder: (context, index) {
+                      final menuItem = _filteredMenuItems[index];
+                      return ListTile(
+                        leading: Icon(Icons.fastfood),
+                        title: Text(menuItem.name),
+                        subtitle: Text('가격: ${menuItem.price}원'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => detail.MenuEditDetail(
+                                  menuItemId: menuItem.id),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
           }
         },
       ),
-    );
-  }
-}
-
-class MenuItem {
-  final String id;
-  final String name;
-  final int price;
-  final String description;
-  final String origin;
-  final String photoUrl;
-
-  MenuItem({
-    required this.id,
-    required this.name,
-    required this.price,
-    required this.description,
-    required this.origin,
-    required this.photoUrl,
-  });
-
-  factory MenuItem.fromDocument(DocumentSnapshot document) {
-    final data = document.data() as Map<String, dynamic>;
-    return MenuItem(
-      id: document.id,
-      name: data['menuName'] ?? '',
-      price: data['price'] ?? 0,
-      description: data['description'] ?? '',
-      origin: data['origin'] ?? '',
-      photoUrl: data['photoUrl'] ?? '',
     );
   }
 }

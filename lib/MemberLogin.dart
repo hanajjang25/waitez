@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class login extends StatefulWidget {
@@ -223,7 +224,28 @@ class _LoginState extends State<login> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 50),
+                    Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Divider(color: Colors.grey, thickness: 2.0)),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/nonMemberInfo');
+                        },
+                        child: Text(
+                          '비회원으로 예약하기',
+                          style: TextStyle(
+                            color: Colors.blueGrey,
+                            fontSize: 16,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: _isFormValid
                           ? () async {

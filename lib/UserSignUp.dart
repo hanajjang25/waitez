@@ -52,6 +52,22 @@ class _SignUpState extends State<SignUp> {
     return methods.isNotEmpty;
   }
 
+  Future<bool> _isNicknameInUse(String nickname) async {
+    QuerySnapshot querySnapshot = await _firestore
+        .collection('users')
+        .where('nickname', isEqualTo: nickname)
+        .get();
+    return querySnapshot.docs.isNotEmpty;
+  }
+
+  Future<bool> _isPhoneNumInUse(String phoneNum) async {
+    QuerySnapshot querySnapshot = await _firestore
+        .collection('users')
+        .where('phoneNum', isEqualTo: phoneNum)
+        .get();
+    return querySnapshot.docs.isNotEmpty;
+  }
+
   Future<String> emailSignUp({
     required String nickname,
     required String email,
@@ -60,6 +76,12 @@ class _SignUpState extends State<SignUp> {
     String? resNum,
   }) async {
     try {
+      // Check if nickname already exists
+      bool nicknameInUse = await _isNicknameInUse(nickname);
+      if (nicknameInUse) {
+        return "nickname-already-in-use"; // Nickname already exists
+      }
+
       // Check if business registration number already exists
       if (resNum != null && resNum.isNotEmpty) {
         QuerySnapshot querySnapshot = await _firestore
@@ -76,6 +98,12 @@ class _SignUpState extends State<SignUp> {
       bool emailInUse = await _isEmailInUse(email);
       if (emailInUse) {
         return "email-already-in-use"; // Email already exists
+      }
+
+      // Check if phone number already exists
+      bool phoneNumInUse = await _isPhoneNumInUse(phoneNum);
+      if (phoneNumInUse) {
+        return "phoneNum-already-in-use"; // Phone number already exists
       }
 
       // Create user with email and password
@@ -129,7 +157,9 @@ class _SignUpState extends State<SignUp> {
 
   bool _validateNickname(String nickname) {
     final RegExp nicknameExp = RegExp(r'^[가-힣]+$');
-    return nicknameExp.hasMatch(nickname);
+    return nicknameExp.hasMatch(nickname) &&
+        nickname.length >= 2 &&
+        nickname.length <= 7;
   }
 
   bool _validatePhoneNum(String phoneNum) {
@@ -138,7 +168,7 @@ class _SignUpState extends State<SignUp> {
   }
 
   bool _validatePassword(String password) {
-    final RegExp passwordExp = RegExp(r'^(?=.*[a-z]).{6,}$');
+    final RegExp passwordExp = RegExp(r'^(?=.*[a-z]).{6,10}$');
     return passwordExp.hasMatch(password);
   }
 
@@ -148,11 +178,23 @@ class _SignUpState extends State<SignUp> {
   }
 
   bool _isFormValid() {
-    return _validateNickname(_nicknameController.text) &&
-        _validatePassword(_passwordController.text) &&
-        _passwordsMatch &&
-        _validatePhoneNum(_phoneNumController.text) &&
-        _emailVerified;
+    bool nicknameValid = _validateNickname(_nicknameController.text);
+    bool passwordValid = _validatePassword(_passwordController.text);
+    bool phoneNumValid = _validatePhoneNum(_phoneNumController.text);
+    bool passwordsMatch = _passwordsMatch;
+    bool emailVerified = _emailVerified;
+
+    print("Nickname valid: $nicknameValid");
+    print("Password valid: $passwordValid");
+    print("Phone number valid: $phoneNumValid");
+    print("Passwords match: $passwordsMatch");
+    print("Email verified: $emailVerified");
+
+    return nicknameValid &&
+        passwordValid &&
+        passwordsMatch &&
+        phoneNumValid &&
+        emailVerified;
   }
 
   @override
@@ -262,7 +304,7 @@ class _SignUpState extends State<SignUp> {
                                       ? _validateNickname(
                                               _nicknameController.text)
                                           ? null
-                                          : '한글만 입력 가능합니다'
+                                          : '한글만 입력 가능하며 2글자 이상 7글자 이하이어야 합니다'
                                       : null,
                                 ),
                                 onChanged: (value) {
@@ -297,7 +339,7 @@ class _SignUpState extends State<SignUp> {
                                           await _isEmailInUse(email);
                                       if (emailInUse) {
                                         _showErrorDialog(
-                                            "오류", "이미 존재하는 이메일입니다.");
+                                            "오류", "이미 등록되어 있는 메일이 있습니다.");
                                         return;
                                       }
 
@@ -395,7 +437,7 @@ class _SignUpState extends State<SignUp> {
                                       ? _validatePassword(
                                               _passwordController.text)
                                           ? null
-                                          : '비밀번호는 6글자 이상이고 영어 소문자를 포함해야 합니다'
+                                          : '비밀번호는 6글자 이상 10글자 이하이고 영어 소문자를 포함해야 합니다'
                                       : null,
                                 ),
                                 obscureText: true,
@@ -464,109 +506,106 @@ class _SignUpState extends State<SignUp> {
                             ),
                             SizedBox(height: 30),
                             ElevatedButton(
-                              onPressed: _isFormValid()
-                                  ? () async {
-                                      // 입력된 값들 가져오기
-                                      String nickname =
-                                          _nicknameController.text.trim();
-                                      String email =
-                                          _emailController.text.trim();
-                                      String password =
-                                          _passwordController.text;
-                                      String passwordConfirm =
-                                          _passwordConfirmController.text;
-                                      String phoneNum =
-                                          _phoneNumController.text.trim();
-                                      String resNum =
-                                          _resNumController.text.trim();
+                              onPressed: () async {
+                                // 입력된 값들 가져오기
+                                String nickname =
+                                    _nicknameController.text.trim();
+                                String email = _emailController.text.trim();
+                                String password = _passwordController.text;
+                                String passwordConfirm =
+                                    _passwordConfirmController.text;
+                                String phoneNum =
+                                    _phoneNumController.text.trim();
+                                String resNum = _resNumController.text.trim();
 
-                                      // 필드가 비어있는지 확인
-                                      if (nickname.isEmpty ||
-                                          !_validateNickname(nickname)) {
-                                        _showErrorDialog(
-                                            "오류", "닉네임을 올바르게 입력해주세요.");
-                                        return;
-                                      }
+                                // 필드가 비어있는지 확인
+                                if (nickname.isEmpty ||
+                                    !_validateNickname(nickname)) {
+                                  _showErrorDialog("오류", "닉네임을 올바르게 입력해주세요.");
+                                  return;
+                                }
 
-                                      if (email.isEmpty) {
-                                        _showErrorDialog(
-                                            "오류", "이메일 주소를 입력해주세요.");
-                                        return;
-                                      }
+                                if (email.isEmpty) {
+                                  _showErrorDialog("오류", "이메일 주소를 입력해주세요.");
+                                  return;
+                                }
 
-                                      if (password.isEmpty ||
-                                          !_validatePassword(password)) {
-                                        _showErrorDialog(
-                                            "오류", "비밀번호를 올바르게 입력해주세요.");
-                                        return;
-                                      }
+                                if (password.isEmpty ||
+                                    !_validatePassword(password)) {
+                                  _showErrorDialog("오류", "비밀번호를 올바르게 입력해주세요.");
+                                  return;
+                                }
 
-                                      if (password != passwordConfirm) {
-                                        _showErrorDialog(
-                                            "오류", "비밀번호가 일치하지 않습니다.");
-                                        return;
-                                      }
+                                if (passwordConfirm.isEmpty) {
+                                  _showErrorDialog("오류", "비밀번호 재입력을 해주세요.");
+                                  return;
+                                }
 
-                                      if (phoneNum.isEmpty ||
-                                          !_validatePhoneNum(phoneNum)) {
-                                        _showErrorDialog(
-                                            "오류", "전화번호를 올바르게 입력해주세요.");
-                                        return;
-                                      }
+                                if (password != passwordConfirm) {
+                                  _showErrorDialog("오류", "비밀번호가 일치하지 않습니다.");
+                                  return;
+                                }
 
-                                      if (!_emailVerified) {
-                                        _showErrorDialog(
-                                            "오류", "이메일 인증을 완료해주세요.");
-                                        return;
-                                      }
+                                if (phoneNum.isEmpty ||
+                                    !_validatePhoneNum(phoneNum)) {
+                                  _showErrorDialog("오류", "전화번호를 올바르게 입력해주세요.");
+                                  return;
+                                }
 
-                                      if (resNum.isNotEmpty &&
-                                          !_validateResNum(resNum)) {
-                                        _showErrorDialog(
-                                            "오류", "사업자등록번호를 올바르게 입력해주세요.");
-                                        return;
-                                      }
+                                if (!_emailVerified) {
+                                  _showErrorDialog("오류", "이메일 인증을 완료해주세요.");
+                                  return;
+                                }
 
-                                      // 회원가입 시도
-                                      String result = await emailSignUp(
-                                        nickname: nickname,
-                                        email: email,
-                                        password: password,
-                                        phoneNum: phoneNum,
-                                        resNum:
-                                            resNum.isNotEmpty ? resNum : null,
-                                      );
+                                if (resNum.isNotEmpty &&
+                                    !_validateResNum(resNum)) {
+                                  _showErrorDialog(
+                                      "오류", "사업자등록번호를 올바르게 입력해주세요.");
+                                  return;
+                                }
 
-                                      // 등록 결과에 따라 처리
-                                      switch (result) {
-                                        case "success":
-                                          if (_currentUser != null) {
-                                            await _currentUser!
-                                                .updatePassword(password);
-                                          }
-                                          Navigator.pushNamed(
-                                              context, '/login');
-                                          break;
-                                        case "email-already-in-use":
-                                          _showErrorDialog(
-                                              "오류", "이미 존재하는 이메일입니다.");
-                                          break;
-                                        case "resNum-exists":
-                                          _showErrorDialog(
-                                              "오류", "이미 존재하는 사업자등록번호입니다.");
-                                          break;
-                                        case "fail":
-                                          if (_currentUser != null) {
-                                            await _currentUser!.delete();
-                                          }
-                                          _showErrorDialog(
-                                              "오류", "회원가입에 실패했습니다.");
-                                          break;
-                                        default:
-                                          break;
-                                      }
+                                // 회원가입 시도
+                                String result = await emailSignUp(
+                                  nickname: nickname,
+                                  email: email,
+                                  password: password,
+                                  phoneNum: phoneNum,
+                                  resNum: resNum.isNotEmpty ? resNum : null,
+                                );
+
+                                // 등록 결과에 따라 처리
+                                switch (result) {
+                                  case "success":
+                                    if (_currentUser != null) {
+                                      await _currentUser!
+                                          .updatePassword(password);
                                     }
-                                  : null,
+                                    Navigator.pushNamed(context, '/login');
+                                    break;
+                                  case "nickname-already-in-use":
+                                    _showErrorDialog("오류", "동일한 닉네임이 존재합니다.");
+                                    break;
+                                  case "email-already-in-use":
+                                    _showErrorDialog(
+                                        "오류", "이미 등록되어 있는 메일이 있습니다.");
+                                    break;
+                                  case "phoneNum-already-in-use":
+                                    _showErrorDialog("오류", "이미 전화번호가 존재합니다.");
+                                    break;
+                                  case "resNum-exists":
+                                    _showErrorDialog(
+                                        "오류", "이미 존재하는 사업자등록번호입니다.");
+                                    break;
+                                  case "fail":
+                                    if (_currentUser != null) {
+                                      await _currentUser!.delete();
+                                    }
+                                    _showErrorDialog("오류", "회원가입에 실패했습니다.");
+                                    break;
+                                  default:
+                                    break;
+                                }
+                              },
                               child: Text(
                                 '회원가입',
                                 style: TextStyle(

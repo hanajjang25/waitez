@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'UserBottom.dart';
 
-class Reservation extends StatefulWidget {
+class NonMemberReservation extends StatefulWidget {
   @override
-  _ReservationState createState() => _ReservationState();
+  _NonMemberReservationState createState() => _NonMemberReservationState();
 }
 
-class _ReservationState extends State<Reservation> {
+class _NonMemberReservationState extends State<NonMemberReservation> {
   int numberOfPeople = 0;
   bool isPeopleSelectorEnabled = false;
   bool isFirstClick = true;
@@ -22,57 +20,12 @@ class _ReservationState extends State<Reservation> {
   final TextEditingController _altPhoneController =
       TextEditingController(text: '');
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserInfo();
-  }
-
   void showSnackBar(BuildContext context, String message) {
     final snackBar = SnackBar(
       content: Text(message),
       duration: Duration(seconds: 2),
     );
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
-  }
-
-  Future<void> _fetchUserInfo() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (userDoc.exists) {
-          final data = userDoc.data()!;
-          setState(() {
-            _nicknameController.text = data['nickname'] ?? '';
-            _phoneController.text = data['phoneNum'] ?? '';
-          });
-        } else {
-          print('User document does not exist.');
-        }
-      } else {
-        // If user is not logged in, fetch data from non_members collection
-        final nonMemberDoc = await FirebaseFirestore.instance
-            .collection('non_members')
-            .where('isSaved', isEqualTo: true)
-            .limit(1)
-            .get();
-        if (nonMemberDoc.docs.isNotEmpty) {
-          final data = nonMemberDoc.docs.first.data();
-          setState(() {
-            _nicknameController.text = data['nickname'] ?? '';
-            _phoneController.text = data['phoneNum'] ?? '';
-          });
-        } else {
-          print('Non-member document does not exist.');
-        }
-      }
-    } catch (e) {
-      print('Error fetching user info: $e');
-    }
   }
 
   String _formatPhoneNumber(String value) {
@@ -84,115 +37,6 @@ class _ReservationState extends State<Reservation> {
       value = value.substring(0, 8) + '-' + value.substring(8);
     }
     return value;
-  }
-
-  Future<void> _saveReservation(BuildContext context, String type) async {
-    String nickname = _nicknameController.text;
-    String phone = _phoneController.text;
-
-    final reservationData = {
-      'nickname': nickname,
-      'phone': phone,
-      'type': type == '매장' ? 1 : 2,
-      'timestamp': Timestamp.now(),
-    };
-    if (type == '매장') {
-      reservationData['numberOfPeople'] = numberOfPeople;
-    }
-
-    // Check for existing reservation
-    final reservationQuery = await FirebaseFirestore.instance
-        .collection('reservations')
-        .where('nickname', isEqualTo: nickname)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-
-    if (reservationQuery.docs.isNotEmpty) {
-      // Update the most recent reservation
-      final reservationDoc = reservationQuery.docs.first.reference;
-      await reservationDoc.update(reservationData);
-    } else {
-      // Create a new reservation
-      await FirebaseFirestore.instance
-          .collection('reservations')
-          .add(reservationData);
-    }
-
-    // Get the most recent reservation timestamp
-    final recentReservationQuery = await FirebaseFirestore.instance
-        .collection('reservations')
-        .where('nickname', isEqualTo: nickname)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-
-    if (recentReservationQuery.docs.isNotEmpty) {
-      final recentReservationData = recentReservationQuery.docs.first.data();
-      print(
-          'Most Recent Reservation Timestamp: ${recentReservationData['timestamp']}');
-    }
-
-    setState(() {
-      reservationType = type;
-      isInfoInputScreen = true;
-    });
-  }
-
-  Future<void> _saveReservationInfo() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Firestore 트랜잭션 사용하여 업데이트
-        await FirebaseFirestore.instance.runTransaction((transaction) async {
-          final reservationQuery = await FirebaseFirestore.instance
-              .collection('reservations')
-              .where('nickname', isEqualTo: _nicknameController.text)
-              .orderBy('timestamp', descending: true)
-              .limit(1)
-              .get();
-
-          // 디버깅: 쿼리 결과 로그 출력
-          print('Query Result Count: ${reservationQuery.docs.length}');
-          reservationQuery.docs.forEach((doc) {
-            print('Document ID: ${doc.id}, Data: ${doc.data()}');
-          });
-
-          if (reservationQuery.docs.isNotEmpty) {
-            final reservationDoc = reservationQuery.docs.first.reference;
-            transaction.update(reservationDoc, {
-              if (numberOfPeople != null) 'numberOfPeople': numberOfPeople,
-              'altPhoneNum': _altPhoneController.text,
-            });
-
-            // Retrieve reservationId
-            final reservationId = reservationDoc.id;
-
-            // Update the reservation info
-            await FirebaseFirestore.instance.collection('cart').add({
-              'reservationId': reservationId,
-              'nickname': _nicknameController.text,
-              'timestamp': Timestamp.now(),
-              // Add any other fields required in the cart document
-            });
-
-            print('Reservation updated and cart info saved successfully');
-          } else {
-            print('No recent reservation found for this user.');
-          }
-        });
-
-        Navigator.pushNamed(
-          context,
-          '/reservationMenu',
-          arguments: {'restaurantId': 'YourRestaurantIdHere'},
-        );
-      } else {
-        print('User is not logged in.');
-      }
-    } catch (e) {
-      print('Error saving reservation info: $e');
-    }
   }
 
   @override
@@ -295,8 +139,8 @@ class _ReservationState extends State<Reservation> {
                   SizedBox(height: 100),
                   Center(
                     child: ElevatedButton(
-                      onPressed: () async {
-                        await _saveReservationInfo();
+                      onPressed: () {
+                        // 여기에 버튼 클릭 시 동작할 코드를 추가하세요.
                       },
                       child: Text('다음'),
                       style: ButtonStyle(
@@ -349,7 +193,7 @@ class _ReservationState extends State<Reservation> {
                         showSnackBar(context, '인원수를 선택하세요');
                       } else {
                         if (numberOfPeople > 0) {
-                          _saveReservation(context, '매장');
+                          // 여기에 버튼 클릭 시 동작할 코드를 추가하세요.
                         } else {
                           showSnackBar(context, '인원수를 선택하세요');
                         }
@@ -408,7 +252,7 @@ class _ReservationState extends State<Reservation> {
                   SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      _saveReservation(context, '포장');
+                      // 여기에 버튼 클릭 시 동작할 코드를 추가하세요.
                     },
                     child: Text('포장'),
                     style: ButtonStyle(

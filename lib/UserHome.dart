@@ -32,7 +32,11 @@ class home extends StatelessWidget {
           actions: [
             // 우측의 액션 버튼들
             IconButton(onPressed: () {}, icon: Icon(Icons.refresh)),
-            IconButton(onPressed: () {}, icon: Icon(Icons.notifications))
+            IconButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/noti');
+                },
+                icon: Icon(Icons.notifications))
           ],
         ),
       ),

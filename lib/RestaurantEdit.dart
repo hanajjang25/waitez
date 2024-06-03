@@ -17,7 +17,8 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
   String _location = '';
   String _description = '';
   String _registrationNumber = '';
-  String _businessHours = '';
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
   String _photoUrl = '';
   bool _isOpen = false;
   bool _isLoading = true; // 로딩 상태를 나타내는 변수
@@ -53,8 +54,6 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
         return;
       }
 
-      print('User nickname: $nickname'); // Debugging
-
       // Firestore에서 닉네임과 일치하는 항목 찾기
       final querySnapshot = await FirebaseFirestore.instance
           .collection('restaurants')
@@ -62,22 +61,24 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
           .where('isDeleted', isEqualTo: false)
           .get();
 
-      print('Query result count: ${querySnapshot.docs.length}'); // Debugging
-
       if (querySnapshot.docs.isNotEmpty) {
         final doc = querySnapshot.docs.first;
         final data = doc.data();
-        print('Restaurant data: $data'); // Debugging
+        final businessHours = data['businessHours']?.split(' ~ ');
+
         setState(() {
           _restaurantId = doc.id;
           _restaurantName = data['restaurantName'] ?? '';
           _location = data['location'] ?? '';
           _description = data['description'] ?? '';
           _registrationNumber = data['registrationNumber'] ?? '';
-          _businessHours = data['businessHours'] ?? '';
           _photoUrl = data['photoUrl'] ?? '';
           _isOpen = data['isOpen'] ?? false;
           _isLoading = false; // 데이터 로드 완료
+          if (businessHours != null && businessHours.length == 2) {
+            _startTime = _parseTime(businessHours[0]);
+            _endTime = _parseTime(businessHours[1]);
+          }
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,12 +99,63 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
     }
   }
 
+  TimeOfDay _parseTime(String time) {
+    final format = DateFormat.Hm();
+    final dateTime = format.parse(time);
+    return TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
+  }
+
+  Future<void> _selectTime(BuildContext context, bool isStartTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStartTime) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
+    }
+  }
+
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
+      if (_startTime == null || _endTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('영업시간을 설정해주세요.')),
+        );
+        return;
+      }
+
+      final startTime = DateTime(
+        0,
+        1,
+        1,
+        _startTime!.hour,
+        _startTime!.minute,
+      );
+      final endTime = DateTime(
+        0,
+        1,
+        1,
+        _endTime!.hour,
+        _endTime!.minute,
+      );
+
+      if (endTime.isBefore(startTime)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('영업시간 설정이 올바르지 않습니다.')),
+        );
+        return;
+      }
+
       // 영업시간을 파싱하여 영업 활성화 여부 결정
-      _isOpen = _checkBusinessHours(_businessHours);
+      _isOpen = _checkBusinessHours(_startTime!, _endTime!);
 
       // 데이터를 Firestore에 저장
       await FirebaseFirestore.instance
@@ -111,7 +163,8 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
           .doc(_restaurantId)
           .update({
         'description': _description,
-        'businessHours': _businessHours,
+        'businessHours':
+            '${_startTime!.format(context)} ~ ${_endTime!.format(context)}',
         'photoUrl': _photoUrl,
         'isOpen': _isOpen,
       });
@@ -165,26 +218,42 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
     }
   }
 
-  bool _checkBusinessHours(String businessHours) {
-    final format = DateFormat.Hm();
-    final now = DateTime.now();
+  bool _checkBusinessHours(TimeOfDay startTime, TimeOfDay endTime) {
+    final now = TimeOfDay.now();
+    final currentTime = DateTime(
+      0,
+      1,
+      1,
+      now.hour,
+      now.minute,
+    );
 
-    try {
-      final hours = businessHours.split(' ~ ');
-      final start = format.parse(hours[0]);
-      final end = format.parse(hours[1]);
+    final start = DateTime(
+      0,
+      1,
+      1,
+      startTime.hour,
+      startTime.minute,
+    );
 
-      final currentTime = format.parse('${now.hour}:${now.minute}');
+    final end = DateTime(
+      0,
+      1,
+      1,
+      endTime.hour,
+      endTime.minute,
+    );
 
-      if (end.isBefore(start)) {
-        return currentTime.isAfter(start) || currentTime.isBefore(end);
-      } else {
-        return currentTime.isAfter(start) && currentTime.isBefore(end);
-      }
-    } catch (e) {
-      // 잘못된 형식의 경우 영업 종료로 간주
-      return false;
+    if (end.isBefore(start)) {
+      return currentTime.isAfter(start) || currentTime.isBefore(end);
+    } else {
+      return currentTime.isAfter(start) && currentTime.isBefore(end);
     }
+  }
+
+  bool _isValidKorean(String value) {
+    final koreanRegex = RegExp(r'^[가-힣\s]+$');
+    return koreanRegex.hasMatch(value);
   }
 
   void _showDeleteConfirmationDialog() {
@@ -295,26 +364,30 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                         readOnly: true, // 등록번호는 수정 불가
                       ),
                       SizedBox(height: 10),
-                      TextFormField(
-                        initialValue: _businessHours,
-                        decoration: InputDecoration(
-                          labelText: '영업시간 (HH:MM ~ HH:MM)',
-                          border: OutlineInputBorder(),
+                      Text(
+                        '영업시간 (HH:MM ~ HH:MM)',
+                        style: TextStyle(
+                          color: Color(0xFF1C1C21),
+                          fontSize: 18,
+                          fontFamily: 'Epilogue',
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return '영업시간을 입력해주세요';
-                          }
-                          if (!RegExp(
-                                  r'^[0-2][0-9]:[0-5][0-9] ~ [0-2][0-9]:[0-5][0-9]$')
-                              .hasMatch(value)) {
-                            return '영업시간은 HH:MM ~ HH:MM 형식으로 입력해주세요';
-                          }
-                          return null;
-                        },
-                        onSaved: (value) {
-                          _businessHours = value!;
-                        },
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () => _selectTime(context, true),
+                            child: Text(_startTime != null
+                                ? _startTime!.format(context)
+                                : '시작 시간 선택'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => _selectTime(context, false),
+                            child: Text(_endTime != null
+                                ? _endTime!.format(context)
+                                : '종료 시간 선택'),
+                          ),
+                        ],
                       ),
                       SizedBox(height: 10),
                       TextFormField(
@@ -331,39 +404,17 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                           if (value.length < 5) {
                             return '설명은 최소 5글자 이상 입력해야 합니다';
                           }
+                          if (value.length > 100) {
+                            return '최대 100글자까지 입력 가능합니다';
+                          }
+                          if (!_isValidKorean(value)) {
+                            return '설명은 한국어로만 입력해주세요';
+                          }
                           return null;
                         },
                         onSaved: (value) {
                           _description = value!;
                         },
-                      ),
-                      SizedBox(height: 20),
-                      Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start, // 버튼을 부모의 중앙에 배치
-                        children: [
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/menuEdit');
-                            },
-                            child: Text(' + 메뉴 수정'),
-                            style: ButtonStyle(
-                              backgroundColor:
-                                  MaterialStateProperty.all(Colors.white),
-                              foregroundColor:
-                                  MaterialStateProperty.all(Colors.black),
-                              minimumSize:
-                                  MaterialStateProperty.all(Size(50, 50)),
-                              padding: MaterialStateProperty.all(
-                                  EdgeInsets.symmetric(horizontal: 10)),
-                              shape: MaterialStateProperty.all(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                       SizedBox(height: 20),
                       Align(

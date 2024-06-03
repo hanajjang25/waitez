@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:waitez/StaffBottom.dart';
 import 'MemberHistory.dart';
 import 'UserBottom.dart';
 
-class Profile extends StatefulWidget {
+class staffProfile extends StatefulWidget {
   @override
-  _ProfileState createState() => _ProfileState();
+  _staffProfileState createState() => _staffProfileState();
 }
 
-class _ProfileState extends State<Profile> {
+class _staffProfileState extends State<staffProfile> {
   String nickname = '';
   String email = '';
   String phone = '';
@@ -132,7 +133,7 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Profile',
+          '회원정보',
           style: TextStyle(
             color: Color(0xFF1C1C21),
             fontSize: 18,
@@ -145,9 +146,7 @@ class _ProfileState extends State<Profile> {
         actions: [
           IconButton(
             icon: Icon(Icons.settings),
-            onPressed: () {
-              Navigator.pushNamed(context, '/setting');
-            },
+            onPressed: () {},
           ),
         ],
       ),
@@ -156,6 +155,7 @@ class _ProfileState extends State<Profile> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              SizedBox(height: 50),
               CircleAvatar(
                 radius: 50,
                 backgroundImage: AssetImage("assets/images/malatang.png"),
@@ -216,46 +216,11 @@ class _ProfileState extends State<Profile> {
                 ],
               ),
               SizedBox(height: 30),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '이력조회',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              ...reservations.map((reservation) {
-                return ReservationCard(
-                  imageAsset: reservation['restaurantPhoto'] ??
-                      'assets/images/malatang.png',
-                  restaurantName: reservation['restaurantName'] ?? 'Unknown',
-                  date: formatDate(reservation['timestamp']),
-                  buttonText: '자세히 보기',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => History(
-                          restaurantName:
-                              reservation['restaurantName'] ?? 'Unknown',
-                          date: formatDate(reservation['timestamp']),
-                          imageAsset: reservation['restaurantPhoto'] ??
-                              'assets/images/malatang.png',
-                          menuItems: reservation['menuItems'] ?? [],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              }).toList(),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: menuButtom(),
+      bottomNavigationBar: staffButtom(),
     );
   }
 }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 class History extends StatelessWidget {
   final String restaurantName;
   final String date;
   final String imageAsset;
-  final List<String> menuItems;
+  final List<Map<String, dynamic>> menuItems;
 
   History({
     required this.restaurantName,
@@ -23,8 +24,8 @@ class History extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Image.asset(imageAsset),
-            SizedBox(height: 10),
+            Image.network(imageAsset),
+            SizedBox(height: 30),
             Text(
               restaurantName,
               style: TextStyle(
@@ -32,6 +33,7 @@ class History extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            SizedBox(height: 10),
             Text(
               date,
               style: TextStyle(
@@ -39,11 +41,14 @@ class History extends StatelessWidget {
               ),
             ),
             SizedBox(height: 20),
-            Text(
-              '주문내역:',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '주문내역:',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             SizedBox(height: 10),
@@ -52,10 +57,20 @@ class History extends StatelessWidget {
                 itemCount: menuItems.length,
                 itemBuilder: (context, index) {
                   return ListTile(
-                    title: Text(menuItems[index]),
+                    title: Text(menuItems[index]['name']),
+                    subtitle: Text('₩${menuItems[index]['price']}'),
+                    trailing: Text('수량: ${menuItems[index]['quantity']}'),
                   );
                 },
               ),
+            ),
+            SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('총 금액', style: TextStyle(fontSize: 18)),
+                Text('₩ ', style: TextStyle(fontSize: 18)),
+              ],
             ),
           ],
         ),

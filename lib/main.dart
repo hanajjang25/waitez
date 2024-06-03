@@ -14,7 +14,6 @@ import 'UserSearch.dart';
 import 'UserHome.dart';
 import 'StaffHome.dart';
 import 'MemberFavorite.dart';
-import 'MemberFavoriteSearch.dart';
 import 'RestaurantEdit.dart';
 import 'MenuRegOne.dart';
 import 'MenuRegList.dart';
@@ -24,6 +23,12 @@ import 'UserReservationMenu.dart';
 import 'MemberCommunity.dart';
 import 'MemberProfile.dart';
 import 'MenuEdit.dart';
+import 'staffProfile.dart';
+import 'UserSetting.dart';
+import 'UserNoti.dart';
+import 'MemberHistory.dart';
+import 'NonMemberHome.dart';
+import 'NonMemberInfo.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,8 +81,7 @@ class MyApp extends StatelessWidget {
         '/search': (context) => search(),
         '/home': (context) => home(),
         '/homeStaff': (context) => homeStaff(),
-        '/favorite': (context) => favorite(),
-        '/favoriteSearch': (context) => favoriteSearch(),
+        '/favorite': (context) => Favorite(),
         '/editRestaurant': (context) => editregRestaurant(),
         '/MenuRegList': (context) => MenuRegList(),
         '/cart': (context) => Cart(),
@@ -86,6 +90,21 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => Profile(),
         '/reservationMenu': (context) => UserReservationMenu(),
         '/menuEdit': (context) => MenuEdit(),
+        '/staffProfile': (context) => staffProfile(),
+        '/setting': (context) => setting(),
+        '/noti': (context) => noti(),
+        '/nonMemberHome': (context) => nonMemberHome(),
+        '/nonMemberInfo': (context) => nonMemberInfo(),
+        '/history': (context) => History(
+              restaurantName: '이력조회 샘플 레스토랑',
+              date: '2024-05-30 12:00',
+              imageAsset: 'https://via.placeholder.com/150',
+              menuItems: [
+                {'name': 'Item 1', 'price': 10000, 'quantity': 1},
+                {'name': 'Item 2', 'price': 20000, 'quantity': 2},
+                {'name': 'Item 3', 'price': 15000, 'quantity': 1},
+              ],
+            ),
       },
     );
   }

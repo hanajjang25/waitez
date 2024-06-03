@@ -1,84 +1,72 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
-import 'UserBottom.dart';
-import '_noRestaurantDetail.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'UserBottom.dart'; // Assume this widget exists
 
-import 'package:flutter/material.dart';
-
-// 별 표시
-class starButton extends StatefulWidget {
-  const starButton({super.key});
+class Favorite extends StatefulWidget {
+  const Favorite({super.key});
 
   @override
-  State<starButton> createState() => _starButtonState();
+  State<Favorite> createState() => _FavoriteState();
 }
 
-// 노랑일 때 별 클릭 시 흰색, 흰색일 때 별 클릭 시 노랑
-class _starButtonState extends State<starButton> {
-  bool _isStarred = false;
+class FavoriteDetails {
+  final String id;
+  final String name;
+  final String address;
+  final String description;
 
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _isStarred = !_isStarred; // Toggle the state
-        });
-      },
-      child: Container(
-        width: 15,
-        height: 15,
-        decoration: ShapeDecoration(
-          color:
-              _isStarred ? Colors.yellow : Colors.white, // Conditional coloring
-          shape: StarBorder(
-            side: BorderSide(
-                width: 1, color: Colors.black), // Ensure the border is visible
-            points: 5,
-            innerRadiusRatio: 0.38,
-            pointRounding: 0,
-            valleyRounding: 0,
-            rotation: 0,
-            squash: 0,
-          ),
-        ),
-      ),
+  FavoriteDetails({
+    required this.id,
+    required this.name,
+    required this.address,
+    required this.description,
+  });
+
+  factory FavoriteDetails.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return FavoriteDetails(
+      id: doc.id,
+      name: data['name'],
+      address: data['address'],
+      description: data['description'],
     );
   }
 }
 
-class favorite extends StatefulWidget {
-  const favorite({super.key});
-
-  @override
-  State<favorite> createState() => _FavoriteState();
-}
-
-class favoriteDetails {
-  final String name;
-  final String rating;
-  final String description;
-
-  favoriteDetails(this.name, this.rating, this.description);
-}
-
-class _FavoriteState extends State<favorite> {
-  final List<favoriteDetails> allItems = [
-    favoriteDetails("마라마라탕탕", "강원특별자치도 단계동 100-001 1층", "마라탕, 마라샹궈, 탕후루"),
-    favoriteDetails(
-        "김밥마리", "강원특별자치도 원주시 북원로 2234-56 1층 106호", "참치김밥, 야채김밥, 돈까스 김밥"),
-    favoriteDetails(
-        "샐러리드", "강원특별자치도 원줏, 단구동 1001-104 3층", "삼겹웜볼, 삼겹소바 포케, 그린 샐러드"),
-  ];
-  List<favoriteDetails> filteredItems = [];
+class _FavoriteState extends State<Favorite> {
+  List<FavoriteDetails> allItems = [];
+  List<FavoriteDetails> filteredItems = [];
+  User? user;
 
   @override
   void initState() {
     super.initState();
-    filteredItems = allItems;
+    _fetchFavorites();
+  }
+
+  Future<void> _fetchFavorites() async {
+    user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final favoritesSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('favorites')
+          .get();
+
+      List<FavoriteDetails> favorites = favoritesSnapshot.docs
+          .map((doc) => FavoriteDetails.fromFirestore(doc))
+          .toList();
+
+      setState(() {
+        allItems = favorites;
+        filteredItems = favorites;
+      });
+    }
   }
 
   void _filterItems(String enteredKeyword) {
-    List<favoriteDetails> results = [];
+    List<FavoriteDetails> results = [];
     if (enteredKeyword.isEmpty) {
       results = allItems;
     } else {
@@ -90,6 +78,42 @@ class _FavoriteState extends State<favorite> {
     setState(() {
       filteredItems = results;
     });
+  }
+
+  Future<void> _removeFavorite(FavoriteDetails item) async {
+    if (user != null) {
+      final userFavoritesRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('favorites');
+
+      final favoriteDoc = userFavoritesRef.doc(item.id);
+
+      final favoriteSnapshot = await favoriteDoc.get();
+
+      if (favoriteSnapshot.exists) {
+        await favoriteDoc.delete();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('즐겨찾기가 해제되었습니다.')),
+        );
+      }
+
+      _fetchFavorites(); // Update the favorite list
+    }
+  }
+
+  Future<bool> _isFavorite(FavoriteDetails item) async {
+    if (user != null) {
+      final favoriteSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('favorites')
+          .doc(item.id)
+          .get();
+
+      return favoriteSnapshot.exists;
+    }
+    return false;
   }
 
   @override
@@ -119,32 +143,72 @@ class _FavoriteState extends State<favorite> {
               ),
             ),
             const SizedBox(height: 20),
-            ListView.builder(
-              shrinkWrap: true,
-              itemCount: filteredItems.length,
-              itemBuilder: (context, index) {
-                var item = filteredItems[index];
-                return ListTile(
-                  leading: Icon(Icons.favorite, color: Colors.red),
-                  title: Text(item.name),
-                  subtitle: Text("${item.rating}, ${item.description}"),
-                  trailing: starButton(), // 별 버튼 위젯
-                  onTap: () {
-                    //Navigator.push(
-                    //context,
-                    //MaterialPageRoute(
-                    // builder: (context) =>
-                    //      restaurantDetailPage(restaurant: item),
-                    //),
-                    //);
-                  },
-                );
-              },
-            ),
+            filteredItems.isEmpty
+                ? Center(child: Text('즐겨찾기 한 음식점이 존재하지 않습니다'))
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filteredItems.length,
+                    itemBuilder: (context, index) {
+                      var item = filteredItems[index];
+                      return FutureBuilder<bool>(
+                        future: _isFavorite(item),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return CircularProgressIndicator();
+                          }
+
+                          final isFavorite = snapshot.data ?? false;
+
+                          return ListTile(
+                            leading: Icon(Icons.favorite, color: Colors.red),
+                            title: Text(item.name),
+                            subtitle:
+                                Text("${item.address}, ${item.description}"),
+                            trailing: IconButton(
+                              icon: Icon(
+                                isFavorite ? Icons.star : Icons.star_border,
+                                color: isFavorite ? Colors.yellow : null,
+                              ),
+                              onPressed: () => _removeFavorite(item),
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RestaurantDetailPage(
+                                    restaurantId: item.id,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
           ],
         ),
       ),
       bottomNavigationBar: menuButtom(), // 하단 네비게이션 바
+    );
+  }
+}
+
+class RestaurantDetailPage extends StatelessWidget {
+  final String restaurantId;
+
+  RestaurantDetailPage({required this.restaurantId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Restaurant Details'),
+      ),
+      body: Center(
+        child: Text('Details for restaurant ID: $restaurantId'),
+      ),
     );
   }
 }

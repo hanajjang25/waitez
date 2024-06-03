@@ -1,6 +1,8 @@
+// MenuRegList.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'menu_item.dart'; // Import the MenuItem class
 import 'MenuRegOne.dart';
 
 class MenuRegList extends StatefulWidget {
@@ -10,6 +12,9 @@ class MenuRegList extends StatefulWidget {
 
 class _MenuRegListState extends State<MenuRegList> {
   late Future<List<MenuItem>> _menuItemsFuture;
+  List<MenuItem> _allMenuItems = [];
+  List<MenuItem> _filteredMenuItems = [];
+  String? _searchKeyword;
 
   @override
   void initState() {
@@ -44,11 +49,88 @@ class _MenuRegListState extends State<MenuRegList> {
               .map((menuDoc) => MenuItem.fromDocument(menuDoc))
               .toList();
 
+          setState(() {
+            _allMenuItems = menuItems;
+            _filteredMenuItems = menuItems;
+          });
+
           return menuItems;
         }
       }
     }
     return [];
+  }
+
+  void _filterItems() {
+    List<MenuItem> results = _allMenuItems;
+    if (_searchKeyword != null && _searchKeyword!.isNotEmpty) {
+      results = results.where((item) {
+        return item.name
+                .toLowerCase()
+                .contains(_searchKeyword!.toLowerCase()) ||
+            item.description
+                .toLowerCase()
+                .contains(_searchKeyword!.toLowerCase());
+      }).toList();
+    }
+
+    setState(() {
+      _filteredMenuItems = results;
+    });
+  }
+
+  void _updateSearch(String search) {
+    setState(() {
+      _searchKeyword = search;
+      _filterItems();
+    });
+  }
+
+  Future<void> _deleteMenuItem(MenuItem menuItem) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userDocRef =
+          FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final userDocSnapshot = await userDocRef.get();
+      final resNum = userDocSnapshot.data()?['resNum'] as String?;
+
+      if (resNum != null) {
+        final restaurantQuery = await FirebaseFirestore.instance
+            .collection('restaurants')
+            .where('registrationNumber', isEqualTo: resNum)
+            .where('isDeleted', isEqualTo: false)
+            .get();
+
+        if (restaurantQuery.docs.isNotEmpty) {
+          final restaurantId = restaurantQuery.docs.first.id;
+          final menuItemsQuery = await FirebaseFirestore.instance
+              .collection('restaurants')
+              .doc(restaurantId)
+              .collection('menus')
+              .where('menuName', isEqualTo: menuItem.name)
+              .get();
+
+          if (menuItemsQuery.docs.isNotEmpty) {
+            final menuItemId = menuItemsQuery.docs.first.id;
+            await FirebaseFirestore.instance
+                .collection('restaurants')
+                .doc(restaurantId)
+                .collection('menus')
+                .doc(menuItemId)
+                .delete();
+
+            setState(() {
+              _allMenuItems.remove(menuItem);
+              _filteredMenuItems.remove(menuItem);
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('메뉴가 삭제되었습니다.')),
+            );
+          }
+        }
+      }
+    }
   }
 
   @override
@@ -60,104 +142,79 @@ class _MenuRegListState extends State<MenuRegList> {
       body: FutureBuilder<List<MenuItem>>(
         future: _menuItemsFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('등록된 메뉴가 없습니다.'));
-          } else {
-            final menuItems = snapshot.data!;
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: '검색',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  onChanged: (value) => _updateSearch(value),
+                  decoration: InputDecoration(
+                    hintText: '검색',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
                 ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: menuItems.length,
-                    itemBuilder: (context, index) {
-                      final menuItem = menuItems[index];
-                      return ListTile(
-                        leading: Icon(Icons.fastfood),
-                        title: Text(menuItem.name),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('가격: ${menuItem.price}원'),
-                            Text('설명: ${menuItem.description}'),
-                            Text('원산지: ${menuItem.origin}'),
-                          ],
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(Icons.close),
-                          onPressed: () {
-                            // 메뉴 아이템 제거 로직
-                            // 여기에 해당하는 구현을 추가하세요
-                          },
+              ),
+              Expanded(
+                child: snapshot.connectionState == ConnectionState.waiting
+                    ? Center(child: CircularProgressIndicator())
+                    : _filteredMenuItems.isEmpty
+                        ? Center(child: Text('등록된 메뉴가 없습니다.'))
+                        : ListView.builder(
+                            itemCount: _filteredMenuItems.length,
+                            itemBuilder: (context, index) {
+                              final menuItem = _filteredMenuItems[index];
+                              return ListTile(
+                                leading: Icon(Icons.fastfood),
+                                title: Text(menuItem.name),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('가격: ${menuItem.price}원'),
+                                    Text('설명: ${menuItem.description}'),
+                                    Text('원산지: ${menuItem.origin}'),
+                                  ],
+                                ),
+                                trailing: IconButton(
+                                  icon: Icon(Icons.close),
+                                  onPressed: () {
+                                    _deleteMenuItem(menuItem);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+              ),
+              SizedBox(
+                height: 100,
+                child: Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // 메뉴 등록 페이지로 이동
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MenuRegOne(
+                            onSave: (menuItem) {
+                              setState(() {
+                                _allMenuItems.add(menuItem);
+                                _filteredMenuItems.add(menuItem);
+                              });
+                            },
+                          ),
                         ),
                       );
                     },
+                    child: Text('+'),
                   ),
                 ),
-                SizedBox(
-                  height: 100,
-                  child: Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // 메뉴 등록 페이지로 이동
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MenuRegOne(
-                              onSave: (menuItem) {
-                                // 새로운 메뉴 아이템 추가 로직
-                                // 여기에 해당하는 구현을 추가하세요
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                      child: Text('+'),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          }
+              ),
+            ],
+          );
         },
       ),
-    );
-  }
-}
-
-class MenuItem {
-  final String name;
-  final int price;
-  final String description;
-  final String origin;
-
-  MenuItem({
-    required this.name,
-    required this.price,
-    required this.description,
-    required this.origin,
-  });
-
-  factory MenuItem.fromDocument(DocumentSnapshot document) {
-    final data = document.data() as Map<String, dynamic>;
-    return MenuItem(
-      name: data['menuName'] ?? '',
-      price: data['price'] ?? 0,
-      description: data['description'] ?? '',
-      origin: data['origin'] ?? '',
     );
   }
 }

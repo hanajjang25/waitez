@@ -13,6 +13,7 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
   Map<String, dynamic>? restaurantData;
   List<Map<String, dynamic>> menuItems = [];
   String? restaurantId;
+  String? reservationId;
 
   @override
   void initState() {
@@ -36,6 +37,7 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
           final reservationDoc = reservationQuery.docs.first;
           setState(() {
             restaurantId = reservationDoc['restaurantId'];
+            reservationId = reservationDoc.id;
           });
           // Fetch restaurant details
           _fetchRestaurantDetails();
@@ -110,6 +112,29 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
     }
   }
 
+  Future<void> _confirmReservation() async {
+    if (reservationId != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('reservations')
+            .doc(reservationId)
+            .update({'status': 'confirmed'});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reservation confirmed.')),
+        );
+      } catch (e) {
+        print('Error confirming reservation: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error confirming reservation: $e')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No reservation found to confirm.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (restaurantData == null) {
@@ -127,26 +152,6 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
       appBar: AppBar(
         title: Text(restaurantData!['restaurantName'] ?? 'Unknown'),
         actions: [
-          IconButton(
-            icon: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.star_border,
-                  color: Colors.black,
-                ),
-                Icon(
-                  Icons.star,
-                  color: isFavorite ? Colors.yellow : Colors.transparent,
-                ),
-              ],
-            ),
-            onPressed: () {
-              setState(() {
-                isFavorite = !isFavorite;
-              });
-            },
-          ),
           IconButton(
             icon: Icon(Icons.shopping_cart),
             onPressed: () {
@@ -265,6 +270,7 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
               children: [
                 ElevatedButton(
                   onPressed: () {
+                    _confirmReservation();
                     Navigator.pushNamed(context, '/waitingNumber');
                   },
                   child: Text('예약하기'),

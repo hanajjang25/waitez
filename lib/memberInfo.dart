@@ -134,7 +134,7 @@ class _MemberInfoState extends State<memberInfo> {
   }
 
   bool _validatePhone(String phone) {
-    return RegExp(r'^\d{3}-\d{3,4}-\d{4}$').hasMatch(phone);
+    return RegExp(r'^010-\d{4}-\d{4}$').hasMatch(phone);
   }
 
   @override
@@ -228,6 +228,8 @@ class _MemberInfoState extends State<memberInfo> {
                   keyboardType: TextInputType.phone,
                   inputFormatters: <TextInputFormatter>[
                     FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(
+                        13), // 010-1234-5678 형식 맞추기 위해 길이 제한
                     PhoneNumberFormatter(),
                   ],
                   validator: (value) {
@@ -324,6 +326,10 @@ class _MemberInfoState extends State<memberInfo> {
                 TextFormField(
                   controller: _businessNumberController,
                   decoration: InputDecoration(),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
                 ),
                 SizedBox(height: 20),
                 Align(
@@ -387,7 +393,9 @@ class _MemberInfoState extends State<memberInfo> {
 class PhoneNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final text = newValue.text.replaceAll(RegExp(r'\D'), '');
     final buffer = StringBuffer();
 

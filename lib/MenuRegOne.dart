@@ -1,25 +1,11 @@
+// MenuRegOne.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-
-class MenuItem {
-  final String name;
-  final int price;
-  final String description;
-  final String origin;
-  final String photoUrl;
-
-  MenuItem({
-    required this.name,
-    required this.price,
-    required this.description,
-    required this.origin,
-    required this.photoUrl,
-  });
-}
+import 'menu_item.dart'; // Import the MenuItem class
 
 class MenuRegOne extends StatefulWidget {
   final Function(MenuItem) onSave;
@@ -77,6 +63,11 @@ class _MenuRegOneState extends State<MenuRegOne> {
     return koreanRegex.hasMatch(value);
   }
 
+  bool _isValidOrigin(String value) {
+    final originRegex = RegExp(r'^[가-힣\s:,()]+$');
+    return originRegex.hasMatch(value);
+  }
+
   Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
       if (_imageFile == null) {
@@ -90,7 +81,6 @@ class _MenuRegOneState extends State<MenuRegOne> {
 
       if (user != null) {
         try {
-          // 사용자 정보 가져오기
           final userDoc = await FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
@@ -98,7 +88,6 @@ class _MenuRegOneState extends State<MenuRegOne> {
           final nickname = userDoc.data()?['nickname'] as String?;
 
           if (nickname != null) {
-            // 닉네임과 일치하는 사업자등록증 찾기
             final restaurantQuery = await FirebaseFirestore.instance
                 .collection('restaurants')
                 .where('nickname', isEqualTo: nickname)
@@ -117,6 +106,7 @@ class _MenuRegOneState extends State<MenuRegOne> {
               }
 
               final MenuItem item = MenuItem(
+                id: '',
                 name: _nameController.text,
                 price: int.parse(_priceController.text),
                 description: _descriptionController.text,
@@ -124,13 +114,7 @@ class _MenuRegOneState extends State<MenuRegOne> {
                 photoUrl: _photoUrl,
               );
 
-              await restaurantDoc.collection('menus').add({
-                'menuName': item.name,
-                'price': item.price,
-                'description': item.description,
-                'origin': item.origin,
-                'photoUrl': item.photoUrl,
-              });
+              await restaurantDoc.collection('menus').add(item.toMap());
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('메뉴가 등록되었습니다.')),
@@ -152,7 +136,6 @@ class _MenuRegOneState extends State<MenuRegOne> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('메뉴 등록 중 오류가 발생했습니다. 다시 시도해주세요.')),
           );
-          print('Error: $e');
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -212,13 +195,10 @@ class _MenuRegOneState extends State<MenuRegOne> {
                       decoration: BoxDecoration(
                         image: _imageFile != null
                             ? DecorationImage(
-                                image: FileImage(_imageFile!),
-                                fit: BoxFit.fill,
-                              )
+                                image: FileImage(_imageFile!), fit: BoxFit.fill)
                             : DecorationImage(
                                 image: AssetImage("assets/images/malatang.png"),
-                                fit: BoxFit.fill,
-                              ),
+                                fit: BoxFit.fill),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: _imageFile == null
@@ -248,6 +228,12 @@ class _MenuRegOneState extends State<MenuRegOne> {
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return '메뉴명을 입력해주세요';
+                    }
+                    if (value.length >= 10) {
+                      return '10글자 미만으로 입력하세요';
+                    }
+                    if (!_isValidKorean(value)) {
+                      return '메뉴명은 한글로만 입력이 가능합니다';
                     }
                     return null;
                   },
@@ -300,6 +286,9 @@ class _MenuRegOneState extends State<MenuRegOne> {
                     if (value.length < 5) {
                       return '설명은 최소 5글자 이상 입력해야 합니다';
                     }
+                    if (value.length > 100) {
+                      return '최대 100글자까지 입력 가능합니다';
+                    }
                     if (!_isValidKorean(value)) {
                       return '설명은 한국어로만 입력해주세요';
                     }
@@ -323,6 +312,9 @@ class _MenuRegOneState extends State<MenuRegOne> {
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return '원산지를 입력해주세요';
+                    }
+                    if (!_isValidOrigin(value)) {
+                      return '원산지는 한국어랑 특수문자(: ,)으로만 입력해주세요';
                     }
                     return null;
                   },

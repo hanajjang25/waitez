@@ -9,14 +9,15 @@ class Cart extends StatefulWidget {
 
 class _CartState extends State<Cart> {
   List<Map<String, dynamic>> cartItems = [];
+  String nickname = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchCartItems();
+    _fetchUserInfo();
   }
 
-  Future<void> _fetchCartItems() async {
+  Future<void> _fetchUserInfo() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -25,34 +26,10 @@ class _CartState extends State<Cart> {
             .doc(user.uid)
             .get();
         if (userDoc.exists) {
-          final nickname = userDoc.data()?['nickname'] ?? '';
-          final reservationQuery = await FirebaseFirestore.instance
-              .collection('reservations')
-              .where('nickname', isEqualTo: nickname)
-              .orderBy('timestamp', descending: true)
-              .limit(1)
-              .get();
-          if (reservationQuery.docs.isNotEmpty) {
-            final reservationId = reservationQuery.docs.first.id;
-            final cartQuery = await FirebaseFirestore.instance
-                .collection('cart')
-                .where('reservationId', isEqualTo: reservationId)
-                .get();
-            setState(() {
-              cartItems = cartQuery.docs.map((doc) {
-                final data = doc.data();
-                final menuItem = data['menuItem'] ?? {};
-                return {
-                  'name': menuItem['menuName'] ?? 'Unknown',
-                  'price': (menuItem['price'] ?? 0) as int,
-                  'quantity': (data['quantity'] ?? 1) as int,
-                  'photoUrl': menuItem['photoUrl'] ?? '',
-                };
-              }).toList();
-            });
-          } else {
-            print('No recent reservation found for this user.');
-          }
+          setState(() {
+            nickname = userDoc.data()?['nickname'] ?? '';
+          });
+          _fetchCartItems(); // Fetch cart items after getting the nickname
         } else {
           print('User document does not exist.');
         }
@@ -60,7 +37,83 @@ class _CartState extends State<Cart> {
         print('User is not logged in.');
       }
     } catch (e) {
+      print('Error fetching user info: $e');
+    }
+  }
+
+  Future<void> _fetchCartItems() async {
+    try {
+      // Fetch the most recent reservation for the user
+      final reservationQuery = await FirebaseFirestore.instance
+          .collection('reservations')
+          .where('nickname', isEqualTo: nickname)
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+      if (reservationQuery.docs.isNotEmpty) {
+        final reservationId = reservationQuery.docs.first.id;
+
+        // Fetch the cart items for the most recent reservation
+        final cartQuery = await FirebaseFirestore.instance
+            .collection('reservations')
+            .doc(reservationId)
+            .collection('cart')
+            .get();
+        setState(() {
+          cartItems = cartQuery.docs.map((doc) {
+            final data = doc.data();
+            final menuItem = data['menuItem'] ?? {};
+            return {
+              'name': menuItem['menuName'] ?? 'Unknown',
+              'price': (menuItem['price'] ?? 0) as int,
+              'quantity': (data['quantity'] ?? 1) as int,
+              'photoUrl': menuItem['photoUrl'] ?? '',
+            };
+          }).toList();
+        });
+      } else {
+        print('No recent reservation found for this user.');
+      }
+    } catch (e) {
       print('Error fetching cart items: $e');
+    }
+  }
+
+  Future<void> _addCartItem(Map<String, dynamic> menuItem) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Fetch the most recent reservation for the user
+        final reservationQuery = await FirebaseFirestore.instance
+            .collection('reservations')
+            .where('nickname', isEqualTo: nickname)
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get();
+        if (reservationQuery.docs.isNotEmpty) {
+          final reservationId = reservationQuery.docs.first.id;
+
+          // Add the cart item to the subcollection
+          await FirebaseFirestore.instance
+              .collection('reservations')
+              .doc(reservationId)
+              .collection('cart')
+              .add({
+            'menuItem': menuItem,
+            'quantity': 1,
+            'nickname': nickname,
+          });
+
+          // Fetch the updated cart items
+          _fetchCartItems();
+        } else {
+          print('No recent reservation found for this user.');
+        }
+      } else {
+        print('User is not logged in.');
+      }
+    } catch (e) {
+      print('Error adding cart item: $e');
     }
   }
 
@@ -84,46 +137,31 @@ class _CartState extends State<Cart> {
             sum + (item['price'] as int) * (item['quantity'] as int));
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        title: Text('장바구니'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             SizedBox(height: 30),
-            Container(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '장바구니',
-                style: TextStyle(
-                  color: Color(0xFF1C1C21),
-                  fontSize: 18,
-                  fontFamily: 'Epilogue',
-                  fontWeight: FontWeight.w700,
-                  height: 1.5,
-                  letterSpacing: -0.27,
-                ),
-              ),
-            ),
-            SizedBox(height: 30),
-            Container(
-                width: 500,
-                child: Divider(color: Colors.black, thickness: 2.0)),
-            SizedBox(height: 20),
             Expanded(
-              child: ListView.builder(
-                itemCount: cartItems.length,
-                itemBuilder: (context, index) {
-                  return CartItem(
-                    name: cartItems[index]['name'] as String,
-                    price: cartItems[index]['price'] as int,
-                    quantity: cartItems[index]['quantity'] as int,
-                    photoUrl: cartItems[index]['photoUrl'] as String,
-                    onRemove: () => removeItem(index),
-                    onQuantityChanged: (newQuantity) =>
-                        updateQuantity(index, newQuantity),
-                  );
-                },
-              ),
+              child: cartItems.isNotEmpty
+                  ? ListView.builder(
+                      itemCount: cartItems.length,
+                      itemBuilder: (context, index) {
+                        return CartItem(
+                          name: cartItems[index]['name'] as String,
+                          price: cartItems[index]['price'] as int,
+                          quantity: cartItems[index]['quantity'] as int,
+                          photoUrl: cartItems[index]['photoUrl'] as String,
+                          onRemove: () => removeItem(index),
+                          onQuantityChanged: (newQuantity) =>
+                              updateQuantity(index, newQuantity),
+                        );
+                      },
+                    )
+                  : Center(child: Text('장바구니에 아이템이 없습니다.')),
             ),
             SizedBox(height: 16),
             Row(

@@ -73,6 +73,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
 
     if (_commentController.text.isNotEmpty) {
+      if (_commentController.text.length > 100) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('댓글은 최대 100자까지 작성 가능합니다')),
+        );
+        return;
+      }
+
       final newComment = {
         'author': _currentUser!.displayName ?? _currentUser!.email ?? 'Unknown',
         'date': DateTime.now().toIso8601String().substring(0, 10),
@@ -152,8 +159,16 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   void saveComment(int index) async {
-    final comment = comments[index];
     final updatedContent = _editControllers[index].text;
+
+    if (updatedContent.length > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('댓글은 최대 100자까지 작성 가능합니다')),
+      );
+      return;
+    }
+
+    final comment = comments[index];
 
     QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection('community')
@@ -404,6 +419,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                 controller: _editControllers[index],
                                 decoration: InputDecoration(
                                   border: OutlineInputBorder(),
+                                  errorText:
+                                      _editControllers[index].text.length > 100
+                                          ? '댓글은 최대 100자까지 작성 가능합니다'
+                                          : null,
                                 ),
                               )
                             : Text(
@@ -458,6 +477,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
+                        errorText: _commentController.text.length > 100
+                            ? '댓글은 최대 100자까지 작성 가능합니다'
+                            : null,
                       ),
                       enabled: _currentUser != null, // 로그인된 사용자만 입력 가능
                     ),

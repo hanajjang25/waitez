@@ -124,6 +124,16 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
     }
   }
 
+  bool _isValidKorean(String value) {
+    final koreanRegex = RegExp(r'^[가-힣\s]+$');
+    return koreanRegex.hasMatch(value);
+  }
+
+  bool _isValidOrigin(String value) {
+    final originRegex = RegExp(r'^[가-힣\s:,]+$');
+    return originRegex.hasMatch(value);
+  }
+
   Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
       final user = FirebaseAuth.instance.currentUser;
@@ -249,11 +259,6 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
     }
   }
 
-  bool _isValidKorean(String value) {
-    final koreanRegex = RegExp(r'^[가-힣\s]+$');
-    return koreanRegex.hasMatch(value);
-  }
-
   void _showDeleteConfirmationDialog() {
     showDialog(
       context: context,
@@ -332,20 +337,30 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                     child: Divider(color: Colors.black, thickness: 2.0)),
                 SizedBox(height: 20),
                 Center(
-                  child: Container(
-                    width: 358,
-                    height: 201,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: NetworkImage(_photoUrl),
-                        fit: BoxFit.fill,
+                  child: GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: 358,
+                      height: 201,
+                      decoration: BoxDecoration(
+                        image: _imageFile != null
+                            ? DecorationImage(
+                                image: FileImage(_imageFile!),
+                                fit: BoxFit.fill,
+                              )
+                            : DecorationImage(
+                                image: NetworkImage(_photoUrl),
+                                fit: BoxFit.fill,
+                              ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.camera_alt,
-                      color: Colors.transparent,
-                      size: 50,
+                      child: _imageFile == null
+                          ? Icon(
+                              Icons.camera_alt,
+                              color: Colors.transparent,
+                              size: 50,
+                            )
+                          : null,
                     ),
                   ),
                 ),
@@ -416,6 +431,9 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                     if (value.length < 5) {
                       return '설명은 최소 5글자 이상 입력해야 합니다';
                     }
+                    if (value.length > 100) {
+                      return '최대 100글자까지 입력 가능합니다';
+                    }
                     return null;
                   },
                 ),
@@ -437,8 +455,8 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                     if (value == null || value.isEmpty) {
                       return '원산지를 입력해주세요';
                     }
-                    if (!_isValidKorean(value)) {
-                      return '원산지는 한국어로만 입력해주세요';
+                    if (!_isValidOrigin(value)) {
+                      return '원산지는 한국어 및 특수문자(: ,)만 입력해주세요';
                     }
                     return null;
                   },

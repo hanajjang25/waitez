@@ -19,7 +19,8 @@ class _RegRestaurantState extends State<regRestaurant> {
   String _location = '';
   String _description = '';
   String _registrationNumber = '';
-  String _businessHours = '';
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
   String _photoUrl = '';
   String _nickname = '';
   bool _isOpen = false;
@@ -71,9 +72,54 @@ class _RegRestaurantState extends State<regRestaurant> {
     }
   }
 
+  Future<void> _selectTime(BuildContext context, bool isStartTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStartTime) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
+    }
+  }
+
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+
+      if (_startTime == null || _endTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('영업시간을 설정해주세요.')),
+        );
+        return;
+      }
+
+      final startTime = DateTime(
+        0,
+        1,
+        1,
+        _startTime!.hour,
+        _startTime!.minute,
+      );
+      final endTime = DateTime(
+        0,
+        1,
+        1,
+        _endTime!.hour,
+        _endTime!.minute,
+      );
+
+      if (endTime.isBefore(startTime)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('영업시간 설정이 올바르지 않습니다.')),
+        );
+        return;
+      }
 
       if (_imageFile != null) {
         _photoUrl = await _uploadImage(_imageFile!);
@@ -92,18 +138,29 @@ class _RegRestaurantState extends State<regRestaurant> {
 
       try {
         // 중복된 음식점 이름이 있는지 확인
-        final QuerySnapshot snapshot = await _collectionRef
+        final QuerySnapshot nameSnapshot = await _collectionRef
             .where('restaurantName', isEqualTo: _restaurantName)
             .get();
-        if (snapshot.docs.isNotEmpty) {
+        if (nameSnapshot.docs.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('이미 등록된 음식점 이름입니다.')),
           );
           return;
         }
 
+        // 중복된 등록번호가 있는지 확인
+        final QuerySnapshot numberSnapshot = await _collectionRef
+            .where('registrationNumber', isEqualTo: _registrationNumber)
+            .get();
+        if (numberSnapshot.docs.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('이미 등록되어 있는 음식점입니다.')),
+          );
+          return;
+        }
+
         // 영업시간을 파싱하여 영업 활성화 여부 결정
-        _isOpen = _checkBusinessHours(_businessHours);
+        _isOpen = _checkBusinessHours(_startTime!, _endTime!);
 
         // 데이터를 Cloud Firestore에 저장
         await _collectionRef.add({
@@ -111,7 +168,8 @@ class _RegRestaurantState extends State<regRestaurant> {
           'location': _location,
           'description': _description,
           'registrationNumber': _registrationNumber,
-          'businessHours': _businessHours,
+          'businessHours':
+              '${_startTime!.format(context)} ~ ${_endTime!.format(context)}',
           'photoUrl': _photoUrl,
           'isOpen': _isOpen,
           'nickname': _nickname,
@@ -135,26 +193,59 @@ class _RegRestaurantState extends State<regRestaurant> {
     }
   }
 
-  bool _checkBusinessHours(String businessHours) {
-    final format = DateFormat.Hm();
-    final now = DateTime.now();
+  bool _checkBusinessHours(TimeOfDay startTime, TimeOfDay endTime) {
+    final now = TimeOfDay.now();
+    final currentTime = DateTime(
+      0,
+      1,
+      1,
+      now.hour,
+      now.minute,
+    );
 
-    try {
-      final hours = businessHours.split(' ~ ');
-      final start = format.parse(hours[0]);
-      final end = format.parse(hours[1]);
+    final start = DateTime(
+      0,
+      1,
+      1,
+      startTime.hour,
+      startTime.minute,
+    );
 
-      final currentTime = format.parse('${now.hour}:${now.minute}');
+    final end = DateTime(
+      0,
+      1,
+      1,
+      endTime.hour,
+      endTime.minute,
+    );
 
-      if (end.isBefore(start)) {
-        return currentTime.isAfter(start) || currentTime.isBefore(end);
-      } else {
-        return currentTime.isAfter(start) && currentTime.isBefore(end);
-      }
-    } catch (e) {
-      // 잘못된 형식의 경우 영업 종료로 간주
+    if (end.isBefore(start)) {
+      return currentTime.isAfter(start) || currentTime.isBefore(end);
+    } else {
+      return currentTime.isAfter(start) && currentTime.isBefore(end);
+    }
+  }
+
+  bool _validateRestaurantName(String value) {
+    final nameRegExp = RegExp(r'^[가-힣]+$');
+    if (!nameRegExp.hasMatch(value)) {
       return false;
     }
+    if (value.length > 15) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateDescription(String value) {
+    final descriptionRegExp = RegExp(r'^[가-힣\s]+$');
+    if (!descriptionRegExp.hasMatch(value)) {
+      return false;
+    }
+    if (value.length > 100) {
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -235,6 +326,14 @@ class _RegRestaurantState extends State<regRestaurant> {
                     if (value == null || value.isEmpty) {
                       return '음식점 이름을 입력해주세요';
                     }
+                    if (!_validateRestaurantName(value)) {
+                      if (!RegExp(r'^[가-힣]+$').hasMatch(value)) {
+                        return '상호명은 한글로만 가능합니다';
+                      }
+                      if (value.length > 15) {
+                        return '15글자 이하로 입력해주세요.';
+                      }
+                    }
                     return null;
                   },
                   onSaved: (value) {
@@ -295,22 +394,22 @@ class _RegRestaurantState extends State<regRestaurant> {
                     fontFamily: 'Epilogue',
                   ),
                 ),
-                TextFormField(
-                  decoration: InputDecoration(),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '영업시간을 입력해주세요';
-                    }
-                    if (!RegExp(
-                            r'^[0-2][0-9]:[0-5][0-9] ~ [0-2][0-9]:[0-5][0-9]$')
-                        .hasMatch(value)) {
-                      return '영업시간은 HH:MM ~ HH:MM 형식으로 입력해주세요';
-                    }
-                    return null;
-                  },
-                  onSaved: (value) {
-                    _businessHours = value!;
-                  },
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => _selectTime(context, true),
+                      child: Text(_startTime != null
+                          ? _startTime!.format(context)
+                          : '시작 시간 선택'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => _selectTime(context, false),
+                      child: Text(_endTime != null
+                          ? _endTime!.format(context)
+                          : '종료 시간 선택'),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 50),
                 Text(
@@ -327,40 +426,19 @@ class _RegRestaurantState extends State<regRestaurant> {
                     if (value == null || value.isEmpty) {
                       return '음식점에 대한 설명을 입력해주세요';
                     }
-                    if (value.length < 5) {
-                      return '설명은 최소 5글자 이상 입력해야 합니다';
+                    if (!_validateDescription(value)) {
+                      if (!RegExp(r'^[가-힣\s]+$').hasMatch(value)) {
+                        return '설명은 한글로만 가능합니다';
+                      }
+                      if (value.length > 100) {
+                        return '최대 100글자까지 입력 가능합니다';
+                      }
                     }
                     return null;
                   },
                   onSaved: (value) {
                     _description = value!;
                   },
-                ),
-                SizedBox(height: 40),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/MenuRegList');
-                      },
-                      child: Text(' + 메뉴 등록'),
-                      style: ButtonStyle(
-                        backgroundColor:
-                            MaterialStateProperty.all(Colors.white),
-                        foregroundColor:
-                            MaterialStateProperty.all(Colors.black),
-                        minimumSize: MaterialStateProperty.all(Size(50, 50)),
-                        padding: MaterialStateProperty.all(
-                            EdgeInsets.symmetric(horizontal: 10)),
-                        shape: MaterialStateProperty.all(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
                 SizedBox(height: 40),
                 ElevatedButton(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'UserReservation.dart'; // UserReservation 클래스를 임포트
 
 class RestaurantInfo extends StatefulWidget {
@@ -17,6 +18,8 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
   Map<String, dynamic>? restaurantData;
   List<Map<String, dynamic>> menuItems = [];
   String? userNickname;
+  final TextEditingController _nicknameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
   @override
   void initState() {
@@ -37,6 +40,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
         if (userDoc.exists) {
           setState(() {
             userNickname = userDoc['nickname'];
+            _phoneController.text = userDoc['phoneNum'] ?? '';
           });
         } else {
           print('User not found');
@@ -110,25 +114,43 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
   Future<void> _saveReservation() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null && userNickname != null) {
-        await FirebaseFirestore.instance.collection('reservations').add({
-          'userId': user.uid,
-          'nickname': userNickname,
-          'restaurantId': widget.restaurantId,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
+      String nickname = userNickname ?? _nicknameController.text;
+
+      if (nickname.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Reservation saved successfully')),
+          SnackBar(content: Text('닉네임을 입력해주세요.')),
         );
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => Reservation()),
-        ); // 예약하기 버튼 클릭 시 UserReservation 화면으로 이동
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('User not found or nickname missing')),
-        );
+        return;
       }
+
+      // 로그인이 되어 있지 않으면 non_members 테이블에서 닉네임 비교
+      if (user == null) {
+        final nonMemberQuery = await FirebaseFirestore.instance
+            .collection('non_members')
+            .where('nickname', isEqualTo: nickname)
+            .get();
+
+        if (nonMemberQuery.docs.isNotEmpty) {
+          final nonMemberData = nonMemberQuery.docs.first.data();
+          nickname = nonMemberData['nickname'];
+          _phoneController.text = nonMemberData['phoneNum'];
+        }
+      }
+
+      await FirebaseFirestore.instance.collection('reservations').add({
+        'userId': user?.uid ?? 'guest',
+        'nickname': nickname,
+        'phone': _phoneController.text,
+        'restaurantId': widget.restaurantId,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reservation saved successfully')),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => Reservation()),
+      ); // 예약하기 버튼 클릭 시 UserReservation 화면으로 이동
     } catch (e) {
       print('Error saving reservation: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -153,28 +175,6 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
     return Scaffold(
       appBar: AppBar(
         title: Text(restaurantData!['restaurantName'] ?? 'Unknown'),
-        actions: [
-          IconButton(
-            icon: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.star_border,
-                  color: Colors.black,
-                ),
-                Icon(
-                  Icons.star,
-                  color: isFavorite ? Colors.yellow : Colors.transparent,
-                ),
-              ],
-            ),
-            onPressed: toggleFavorite,
-          ),
-          IconButton(
-            icon: Icon(Icons.shopping_cart),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -269,11 +269,22 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                   return ListTile(
                     title: Text(menuItem['menuName'] ?? 'Unknown'),
                     subtitle: Text('${menuItem['price'] ?? '0'}원'),
-                    onTap: () => navigateToDetails(menuItem),
+                    onTap: () {},
                   );
                 },
               ),
             ),
+            if (userNickname == null)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  controller: _nicknameController,
+                  decoration: InputDecoration(
+                    labelText: '닉네임',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [

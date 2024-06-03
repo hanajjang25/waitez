@@ -129,14 +129,22 @@ class _SearchState extends State<search> {
 
       if (favoriteSnapshot.exists) {
         await favoriteDoc.delete();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('즐겨찾기가 해제되었습니다.')),
+        );
       } else {
         await favoriteDoc.set({
+          'restaurantId': item.id,
           'name': item.name,
           'address': item.address,
           'description': item.description,
           'businessHours': item.businessHours,
           'photoUrl': item.photoUrl,
+          'userId': user.uid,
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('즐겨찾기에 추가되었습니다.')),
+        );
       }
 
       setState(() {});
@@ -261,8 +269,6 @@ class _SearchState extends State<search> {
           ],
         ),
       ),
-      bottomNavigationBar:
-          menuButtom(), // Bottom navigation bar, assume this widget exists
     );
   }
 }
