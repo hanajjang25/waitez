@@ -29,9 +29,16 @@ import 'UserNoti.dart';
 import 'MemberHistory.dart';
 import 'NonMemberHome.dart';
 import 'NonMemberInfo.dart';
+import 'googleMap.dart';
+import 'package:geolocator/geolocator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final status = await Geolocator.checkPermission();
+  if (status == LocationPermission.denied) {
+    await Geolocator.requestPermission();
+  }
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -105,6 +112,7 @@ class MyApp extends StatelessWidget {
                 {'name': 'Item 3', 'price': 15000, 'quantity': 1},
               ],
             ),
+        '/map': (context) => MapPage(),
       },
     );
   }

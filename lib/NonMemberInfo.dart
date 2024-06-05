@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class nonMemberInfo extends StatefulWidget {
   const nonMemberInfo({super.key});
 
   @override
-  _nonMemberInfoState createState() => _nonMemberInfoState();
+  _NonMemberInfoState createState() => _NonMemberInfoState();
 }
 
-class _nonMemberInfoState extends State<nonMemberInfo> {
+class _NonMemberInfoState extends State<nonMemberInfo> {
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -20,28 +23,85 @@ class _nonMemberInfoState extends State<nonMemberInfo> {
     super.dispose();
   }
 
+  Future<bool> _isNicknameExists(String nickname) async {
+    final QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('nickname', isEqualTo: nickname)
+        .get();
+    final QuerySnapshot nonMemberSnapshot = await FirebaseFirestore.instance
+        .collection('non_members')
+        .where('nickname', isEqualTo: nickname)
+        .get();
+    return userSnapshot.docs.isNotEmpty || nonMemberSnapshot.docs.isNotEmpty;
+  }
+
+  Future<bool> _isPhoneExists(String phone) async {
+    final QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('phoneNum', isEqualTo: phone)
+        .get();
+    final QuerySnapshot nonMemberSnapshot = await FirebaseFirestore.instance
+        .collection('non_members')
+        .where('phoneNum', isEqualTo: phone)
+        .get();
+    return userSnapshot.docs.isNotEmpty || nonMemberSnapshot.docs.isNotEmpty;
+  }
+
   Future<void> _saveNonMemberInfo() async {
     try {
-      final nonMemberData = {
-        'nickname': _nicknameController.text,
-        'phoneNum': _phoneController.text,
-        'timestamp': FieldValue.serverTimestamp(),
-        'isSaved': true, // 구별할 수 있는 변수 추가
-        'log': [
-          {
-            'event': 'Next button pressed',
-            'timestamp': FieldValue.serverTimestamp(),
-            'nickname': _nicknameController.text,
-            'phoneNum': _phoneController.text,
-          }
-        ]
-      };
+      final nickname = _nicknameController.text.trim();
+      final phone = _phoneController.text.trim();
 
-      await FirebaseFirestore.instance
-          .collection('non_members')
-          .add(nonMemberData);
+      if (nickname.isEmpty) {
+        setState(() {
+          _errorMessage = '닉네임을 입력하지 않았습니다. 추가해주세요.';
+        });
+        return;
+      }
 
-      print('Non-member info saved successfully');
+      if (phone.isEmpty) {
+        setState(() {
+          _errorMessage = '전화번호를 입력하지 않았습니다. 추가해주세요.';
+        });
+        return;
+      }
+
+      if (await _isNicknameExists(nickname)) {
+        setState(() {
+          _errorMessage = '이미 존재하는 닉네임입니다. 다른 닉네임을 입력해주세요';
+        });
+        return;
+      }
+
+      if (await _isPhoneExists(phone)) {
+        setState(() {
+          _errorMessage = '이미 존재하는 전화번호입니다, 다른 전화번호를 입력해주세요';
+        });
+        return;
+      }
+
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInAnonymously();
+      User? user = userCredential.user;
+
+      if (user != null) {
+        final nonMemberData = {
+          'nickname': nickname,
+          'phoneNum': phone,
+          'timestamp': FieldValue.serverTimestamp(),
+          'isSaved': true, // 구별할 수 있는 변수 추가
+          'uid': user.uid, // 비회원 로그인 정보 추가
+        };
+
+        await FirebaseFirestore.instance
+            .collection('non_members')
+            .add(nonMemberData);
+
+        print('Non-member info saved successfully');
+        Navigator.pushNamed(context, '/nonMemberHome');
+      } else {
+        print('Error: User is null');
+      }
     } catch (e) {
       print('Error saving non-member info: $e');
     }
@@ -88,6 +148,10 @@ class _nonMemberInfoState extends State<nonMemberInfo> {
             TextFormField(
               controller: _nicknameController,
               decoration: InputDecoration(),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[ㄱ-ㅎㅏ-ㅣ가-힣]')),
+              ],
+              keyboardType: TextInputType.text,
             ),
             SizedBox(height: 30),
             Text(
@@ -104,7 +168,7 @@ class _nonMemberInfoState extends State<nonMemberInfo> {
                 hintText: '010-0000-0000',
               ),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'\d+|\-')),
+                FilteringTextInputFormatter.allow(RegExp(r'[\d-]')),
                 LengthLimitingTextInputFormatter(13),
                 TextInputFormatter.withFunction(
                   (oldValue, newValue) {
@@ -120,11 +184,17 @@ class _nonMemberInfoState extends State<nonMemberInfo> {
               keyboardType: TextInputType.number,
             ),
             SizedBox(height: 30),
+            if (_errorMessage != null) ...[
+              Text(
+                _errorMessage!,
+                style: TextStyle(color: Colors.red),
+              ),
+              SizedBox(height: 30),
+            ],
             Center(
               child: ElevatedButton(
                 onPressed: () async {
                   await _saveNonMemberInfo();
-                  Navigator.pushNamed(context, '/nonMemberHome');
                 },
                 child: Text('다음'),
                 style: ButtonStyle(

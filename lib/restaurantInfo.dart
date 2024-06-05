@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
 import 'UserReservation.dart'; // UserReservation 클래스를 임포트
 
 class RestaurantInfo extends StatefulWidget {
@@ -17,38 +16,12 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
   bool isFavorite = false;
   Map<String, dynamic>? restaurantData;
   List<Map<String, dynamic>> menuItems = [];
-  String? userNickname;
-  final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fetchRestaurantDetails();
     _fetchMenuItems();
-    _fetchUserNickname();
-  }
-
-  Future<void> _fetchUserNickname() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (userDoc.exists) {
-          setState(() {
-            userNickname = userDoc['nickname'];
-            _phoneController.text = userDoc['phoneNum'] ?? '';
-          });
-        } else {
-          print('User not found');
-        }
-      }
-    } catch (e) {
-      print('Error fetching user nickname: $e');
-    }
   }
 
   Future<void> _fetchRestaurantDetails() async {
@@ -114,33 +87,45 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
   Future<void> _saveReservation() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      String nickname = userNickname ?? _nicknameController.text;
 
-      if (nickname.isEmpty) {
+      if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('닉네임을 입력해주세요.')),
+          SnackBar(content: Text('로그인이 필요합니다.')),
         );
         return;
       }
 
-      // 로그인이 되어 있지 않으면 non_members 테이블에서 닉네임 비교
-      if (user == null) {
-        final nonMemberQuery = await FirebaseFirestore.instance
-            .collection('non_members')
-            .where('nickname', isEqualTo: nickname)
-            .get();
+      String nickname = '';
+      String phone = '';
 
-        if (nonMemberQuery.docs.isNotEmpty) {
-          final nonMemberData = nonMemberQuery.docs.first.data();
-          nickname = nonMemberData['nickname'];
-          _phoneController.text = nonMemberData['phoneNum'];
-        }
+      // 사용자 정보를 확인
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final nonMemberQuery = await FirebaseFirestore.instance
+          .collection('non_members')
+          .where('uid', isEqualTo: user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        nickname = userDoc.data()?['nickname'] ?? '';
+        phone = userDoc.data()?['phoneNum'] ?? '';
+      } else if (nonMemberQuery.docs.isNotEmpty) {
+        final nonMemberData = nonMemberQuery.docs.first.data();
+        nickname = nonMemberData['nickname'] ?? '';
+        phone = nonMemberData['phoneNum'] ?? '';
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('사용자 정보를 찾을 수 없습니다.')),
+        );
+        return;
       }
 
       await FirebaseFirestore.instance.collection('reservations').add({
-        'userId': user?.uid ?? 'guest',
+        'userId': user.uid,
         'nickname': nickname,
-        'phone': _phoneController.text,
+        'phone': phone,
         'restaurantId': widget.restaurantId,
         'timestamp': FieldValue.serverTimestamp(),
       });
@@ -274,17 +259,6 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                 },
               ),
             ),
-            if (userNickname == null)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextField(
-                  controller: _nicknameController,
-                  decoration: InputDecoration(
-                    labelText: '닉네임',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [

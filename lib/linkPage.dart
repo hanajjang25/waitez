@@ -41,6 +41,11 @@ class StartPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/history');
                   },
                   child: Text('이력조회')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/map');
+                  },
+                  child: Text('지도')),
             ],
           ),
         ]),

@@ -148,6 +148,7 @@ class nonMemberHome extends StatelessWidget {
                               Navigator.pushNamed(context, '/waitingNumber');
                             },
                           ),
+                          SizedBox(width: 16),
                         ],
                       ),
                     ],
