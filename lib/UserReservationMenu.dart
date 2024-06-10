@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'UserCart.dart'; // UserCart 클래스를 import합니다.
+import 'reservationBottom.dart';
 
 class UserReservationMenu extends StatefulWidget {
   @override
@@ -44,10 +45,36 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
           // Fetch menu items
           _fetchMenuItems();
         } else {
-          print('No recent reservation found for this user.');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No recent reservation found.')),
-          );
+          // Check if the user is anonymous and search in nonmember DB
+          if (user.isAnonymous) {
+            final nonMemberQuery = await FirebaseFirestore.instance
+                .collection('nonmembers')
+                .where('uid', isEqualTo: user.uid)
+                .limit(1)
+                .get();
+
+            if (nonMemberQuery.docs.isNotEmpty) {
+              final nonMemberDoc = nonMemberQuery.docs.first;
+              setState(() {
+                restaurantId = nonMemberDoc['restaurantId'];
+                reservationId = nonMemberDoc['reservationId'];
+              });
+              // Fetch restaurant details
+              _fetchRestaurantDetails();
+              // Fetch menu items
+              _fetchMenuItems();
+            } else {
+              print('No recent reservation found for this user.');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('No recent reservation found.')),
+              );
+            }
+          } else {
+            print('No recent reservation found for this user.');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No recent reservation found.')),
+            );
+          }
         }
       } else {
         print('User is not logged in.');
@@ -291,11 +318,12 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
               ],
             ),
             SizedBox(
-              height: 100,
+              height: 50,
             )
           ],
         ),
       ),
+      bottomNavigationBar: reservationBottom(),
     );
   }
 
@@ -306,7 +334,8 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
         MaterialPageRoute(
           builder: (context) => MenuDetailsPage(
               menuItem: menuItem,
-              restaurantId: restaurantId), // restaurantId 전달
+              restaurantId: restaurantId,
+              reservationId: reservationId), // restaurantId와 reservationId 전달
         ),
       );
     } else {
@@ -320,45 +349,46 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
 class MenuDetailsPage extends StatelessWidget {
   final Map<String, dynamic> menuItem;
   final String? restaurantId;
+  final String? reservationId;
 
-  MenuDetailsPage({required this.menuItem, required this.restaurantId});
+  MenuDetailsPage(
+      {required this.menuItem,
+      required this.restaurantId,
+      required this.reservationId});
 
   Future<void> addToCart(BuildContext context) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Fetch the most recent reservation for the current user
-        final reservationQuery = await FirebaseFirestore.instance
-            .collection('reservations')
-            .where('nickname', isEqualTo: user.displayName)
-            .orderBy('timestamp', descending: true)
-            .limit(1)
-            .get();
+      if (user != null && reservationId != null) {
+        await FirebaseFirestore.instance.collection('cart').add({
+          'nickname': user.displayName,
+          'restaurantId': restaurantId,
+          'menuItem': menuItem,
+          'reservationId': reservationId, // reservationId 추가
+          'timestamp': FieldValue.serverTimestamp(),
+        });
 
-        if (reservationQuery.docs.isNotEmpty) {
-          final reservationDoc = reservationQuery.docs.first;
-          final restaurantId = reservationDoc['restaurantId'];
-
-          await FirebaseFirestore.instance.collection('cart').add({
-            'nickname': user.displayName,
-            'restaurantId': restaurantId,
-            'menuItem': menuItem,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('장바구니에 추가되었습니다.')),
-          );
-        } else {
-          print('No recent reservation found for this user.');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No recent reservation found.')),
-          );
-        }
-      } else {
-        print('User is not logged in.');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('User is not logged in.')),
+          SnackBar(content: Text('장바구니에 추가되었습니다.')),
+        );
+      } else if (user != null && user.isAnonymous) {
+        // Handle anonymous user
+        await FirebaseFirestore.instance.collection('cart').add({
+          'uid': user.uid,
+          'restaurantId': restaurantId,
+          'menuItem': menuItem,
+          'reservationId': reservationId, // reservationId 추가
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('장바구니에 추가되었습니다.')),
+        );
+      } else {
+        print('User is not logged in or reservationId is null.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('User is not logged in or reservationId is null.')),
         );
       }
     } catch (e) {

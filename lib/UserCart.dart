@@ -9,124 +9,144 @@ class Cart extends StatefulWidget {
 
 class _CartState extends State<Cart> {
   List<Map<String, dynamic>> cartItems = [];
-  String nickname = '';
+  String reservationId = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchUserInfo();
+    _fetchUserAndReservationId();
   }
 
-  Future<void> _fetchUserInfo() async {
+  Future<void> _fetchUserAndReservationId() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (userDoc.exists) {
-          setState(() {
-            nickname = userDoc.data()?['nickname'] ?? '';
-          });
-          _fetchCartItems(); // Fetch cart items after getting the nickname
+        String? nickname = await _fetchNickname(user.email!);
+        if (nickname != null) {
+          await _fetchLatestReservationId(nickname);
         } else {
-          print('User document does not exist.');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No user found with this email.')),
+          );
         }
-      } else {
-        print('User is not logged in.');
       }
     } catch (e) {
-      print('Error fetching user info: $e');
+      print('Error fetching user or reservation ID: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching user or reservation ID: $e')),
+      );
+    }
+  }
+
+  Future<String?> _fetchNickname(String email) async {
+    // users 컬렉션에서 사용자 정보를 찾음
+    final userQuery = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (userQuery.docs.isNotEmpty) {
+      return userQuery.docs.first['nickname'];
+    } else {
+      // non_member 컬렉션에서 사용자 정보를 찾음
+      final nonMemberQuery = await FirebaseFirestore.instance
+          .collection('non_member')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (nonMemberQuery.docs.isNotEmpty) {
+        return nonMemberQuery.docs.first['nickname'];
+      }
+    }
+    return null;
+  }
+
+  Future<void> _fetchLatestReservationId(String nickname) async {
+    final reservationQuery = await FirebaseFirestore.instance
+        .collection('reservations')
+        .where('nickname', isEqualTo: nickname)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+
+    if (reservationQuery.docs.isNotEmpty) {
+      final reservationDoc = reservationQuery.docs.first;
+      setState(() {
+        reservationId = reservationDoc.id;
+      });
+      _fetchCartItems();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No recent reservation found.')),
+      );
     }
   }
 
   Future<void> _fetchCartItems() async {
-    try {
-      // Fetch the most recent reservation for the user
-      final reservationQuery = await FirebaseFirestore.instance
-          .collection('reservations')
-          .where('nickname', isEqualTo: nickname)
-          .orderBy('timestamp', descending: true)
-          .limit(1)
-          .get();
-      if (reservationQuery.docs.isNotEmpty) {
-        final reservationId = reservationQuery.docs.first.id;
-
-        // Fetch the cart items for the most recent reservation
+    if (reservationId.isNotEmpty) {
+      try {
         final cartQuery = await FirebaseFirestore.instance
-            .collection('reservations')
-            .doc(reservationId)
             .collection('cart')
+            .where('reservationId', isEqualTo: reservationId)
             .get();
+
         setState(() {
-          cartItems = cartQuery.docs.map((doc) {
-            final data = doc.data();
-            final menuItem = data['menuItem'] ?? {};
-            return {
-              'name': menuItem['menuName'] ?? 'Unknown',
-              'price': (menuItem['price'] ?? 0) as int,
-              'quantity': (data['quantity'] ?? 1) as int,
-              'photoUrl': menuItem['photoUrl'] ?? '',
-            };
-          }).toList();
+          cartItems = cartQuery.docs
+              .map((doc) =>
+                  {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .toList();
         });
-      } else {
-        print('No recent reservation found for this user.');
+      } catch (e) {
+        print('Error fetching cart items: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching cart items: $e')),
+        );
       }
-    } catch (e) {
-      print('Error fetching cart items: $e');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No reservation found to fetch cart items.')),
+      );
     }
   }
 
-  Future<void> _addCartItem(Map<String, dynamic> menuItem) async {
+  Future<void> removeItem(int index) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Fetch the most recent reservation for the user
-        final reservationQuery = await FirebaseFirestore.instance
-            .collection('reservations')
-            .where('nickname', isEqualTo: nickname)
-            .orderBy('timestamp', descending: true)
-            .limit(1)
-            .get();
-        if (reservationQuery.docs.isNotEmpty) {
-          final reservationId = reservationQuery.docs.first.id;
+      await FirebaseFirestore.instance
+          .collection('cart')
+          .doc(cartItems[index]['id'])
+          .delete();
 
-          // Add the cart item to the subcollection
-          await FirebaseFirestore.instance
-              .collection('reservations')
-              .doc(reservationId)
-              .collection('cart')
-              .add({
-            'menuItem': menuItem,
-            'quantity': 1,
-            'nickname': nickname,
-          });
-
-          // Fetch the updated cart items
-          _fetchCartItems();
-        } else {
-          print('No recent reservation found for this user.');
-        }
-      } else {
-        print('User is not logged in.');
-      }
+      setState(() {
+        cartItems.removeAt(index);
+      });
     } catch (e) {
-      print('Error adding cart item: $e');
+      print('Error removing cart item: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error removing cart item: $e')),
+      );
     }
   }
 
-  void removeItem(int index) {
-    setState(() {
-      cartItems.removeAt(index);
-    });
-  }
+  Future<void> updateQuantity(int index, int quantity) async {
+    if (quantity > 0) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('cart')
+            .doc(cartItems[index]['id'])
+            .update({'quantity': quantity});
 
-  void updateQuantity(int index, int quantity) {
-    setState(() {
-      cartItems[index]['quantity'] = quantity;
-    });
+        setState(() {
+          cartItems[index]['quantity'] = quantity;
+        });
+      } catch (e) {
+        print('Error updating cart item quantity: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating cart item quantity: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -134,7 +154,9 @@ class _CartState extends State<Cart> {
     int totalPrice = cartItems.fold(
         0,
         (sum, item) =>
-            sum + (item['price'] as int) * (item['quantity'] as int));
+            sum +
+            ((item['menuItem']?['price'] ?? 0) as int) *
+                ((item['quantity'] ?? 1) as int));
 
     return Scaffold(
       appBar: AppBar(
@@ -150,11 +172,18 @@ class _CartState extends State<Cart> {
                   ? ListView.builder(
                       itemCount: cartItems.length,
                       itemBuilder: (context, index) {
+                        final menuItem = cartItems[index]['menuItem'];
                         return CartItem(
-                          name: cartItems[index]['name'] as String,
-                          price: cartItems[index]['price'] as int,
-                          quantity: cartItems[index]['quantity'] as int,
-                          photoUrl: cartItems[index]['photoUrl'] as String,
+                          name: menuItem != null
+                              ? menuItem['menuName'] as String? ?? ''
+                              : '',
+                          price: menuItem != null
+                              ? menuItem['price'] as int? ?? 0
+                              : 0,
+                          quantity: cartItems[index]['quantity'] as int? ?? 1,
+                          photoUrl: menuItem != null
+                              ? menuItem['photoUrl'] as String? ?? ''
+                              : '',
                           onRemove: () => removeItem(index),
                           onQuantityChanged: (newQuantity) =>
                               updateQuantity(index, newQuantity),

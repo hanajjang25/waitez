@@ -1,22 +1,20 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'UserBottom.dart';
 import 'UserSearch.dart';
+import 'notification.dart';
 
 class home extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(70.0),
         child: AppBar(
           backgroundColor: Colors.white,
-          toolbarHeight: 100,
-          leading:
-              IconButton(onPressed: () {}, icon: Icon(Icons.menu)), // 왼쪽 메뉴버튼
+          toolbarHeight: 80,
+          automaticallyImplyLeading: false,
           title: Text(
             'waitez',
             style: TextStyle(
@@ -79,6 +77,7 @@ class home extends StatelessWidget {
               ),
               SizedBox(height: 16),
               Card(
+                color: Colors.blue[50],
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.0),
                 ),
@@ -113,7 +112,7 @@ class home extends StatelessWidget {
                             ],
                           ),
                           Icon(
-                            Icons.event_seat,
+                            Icons.restaurant,
                             size: 40,
                             color: Colors.blue,
                           ),
@@ -155,10 +154,11 @@ class home extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 20),
-              Center(
-                child: Row(
-                  children: [
-                    Card(
+              Row(
+                children: [
+                  Expanded(
+                    child: Card(
+                      color: Colors.blue[50],
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.0),
                       ),
@@ -167,7 +167,7 @@ class home extends StatelessWidget {
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -192,7 +192,6 @@ class home extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                SizedBox(width: 40),
                                 Icon(
                                   Icons.view_list,
                                   size: 40,
@@ -213,18 +212,21 @@ class home extends StatelessWidget {
                                     side: BorderSide(color: Colors.blue),
                                   ),
                                   onPressed: () {
-                                    Navigator.pushNamed(context, '/search');
+                                    Navigator.pushNamed(
+                                        context, '/historyList');
                                   },
                                 ),
-                                SizedBox(width: 35),
                               ],
                             ),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(width: 10),
-                    Card(
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Card(
+                      color: Colors.blue[50],
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.0),
                       ),
@@ -233,7 +235,7 @@ class home extends StatelessWidget {
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -242,7 +244,7 @@ class home extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '커뮤니티',
+                                      '즐겨찾기',
                                       style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
@@ -250,7 +252,7 @@ class home extends StatelessWidget {
                                     ),
                                     SizedBox(height: 4),
                                     Text(
-                                      'community',
+                                      'favorite',
                                       style: TextStyle(
                                         fontSize: 16,
                                         color: Colors.grey,
@@ -258,9 +260,8 @@ class home extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                SizedBox(width: 40),
                                 Icon(
-                                  Icons.people_alt,
+                                  Icons.star_outline,
                                   size: 40,
                                   color: Colors.blue,
                                 ),
@@ -272,26 +273,117 @@ class home extends StatelessWidget {
                               children: [
                                 ElevatedButton.icon(
                                   icon: Icon(Icons.queue, color: Colors.blue),
-                                  label: Text('커뮤니티'),
+                                  label: Text('즐겨찾기'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white,
                                     foregroundColor: Colors.blue,
                                     side: BorderSide(color: Colors.blue),
                                   ),
                                   onPressed: () {
-                                    Navigator.pushNamed(context, '/search');
+                                    Navigator.pushNamed(context, '/favorite');
                                   },
                                 ),
-                                SizedBox(width: 35),
                               ],
                             ),
                           ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              Card(
+                color: Colors.blue[50],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
                 ),
-              )
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '커뮤니티',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'community',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(
+                            Icons.people_alt,
+                            size: 40,
+                            color: Colors.blue,
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: Icon(Icons.queue, color: Colors.blue),
+                            label: Text('커뮤니티'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.blue,
+                              side: BorderSide(color: Colors.blue),
+                            ),
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/community');
+                            },
+                          ),
+                          SizedBox(width: 16),
+                          ElevatedButton.icon(
+                            icon: Icon(Icons.list_alt, color: Colors.blue),
+                            label: Text('글쓰기'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.blue,
+                              side: BorderSide(color: Colors.blue),
+                            ),
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/communityWrite');
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                  onPressed: () => FlutterLocalNotification.showNotification(
+                        'Button 3 Title',
+                        '3 Body',
+                      ),
+                  child: Text("알림")),
+              ElevatedButton(
+                onPressed: () {
+                  NotificationService.sendSmsNotification(
+                      'Hello, this is a test message!', ['01023209299']);
+                },
+                child: Text('Send SMS'),
+              ),
             ],
           ),
         ),

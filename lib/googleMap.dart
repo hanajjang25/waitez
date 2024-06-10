@@ -5,10 +5,16 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 const String GOOGLE_API_KEY = 'AIzaSyAyc3lB3ln_EvyNTaecIVEi66ZV4CCIPoc';
 
 class MapPage extends StatefulWidget {
+  final String previousPage;
+
+  MapPage({required this.previousPage});
+
   @override
   _MapPageState createState() => _MapPageState();
 }
@@ -25,11 +31,31 @@ class _MapPageState extends State<MapPage> {
   Position? _currentPosition;
   Marker? _userMarker;
   bool _isMapMoving = false;
+  TextEditingController _searchController = TextEditingController();
+  List<String> _suggestions = [];
 
   @override
   void initState() {
     super.initState();
     _requestLocationPermission();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_searchController.text.isNotEmpty) {
+      _getSuggestions(_searchController.text);
+    } else {
+      setState(() {
+        _suggestions = [];
+      });
+    }
   }
 
   Future<void> _requestLocationPermission() async {
@@ -130,12 +156,75 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _getSuggestions(String query) async {
+    final url =
+        'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$query&key=$GOOGLE_API_KEY&language=ko';
+    http.Response response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+      if (data['predictions'].isNotEmpty) {
+        setState(() {
+          _suggestions = List<String>.from(
+              data['predictions'].map((p) => p['description']));
+        });
+      } else {
+        setState(() {
+          _suggestions = [];
+        });
+      }
+    } else {
+      throw Exception('Failed to fetch suggestions');
+    }
+  }
+
+  Future<void> _searchAndNavigate(String searchText) async {
+    final url =
+        'https://maps.googleapis.com/maps/api/geocode/json?address=$searchText&key=$GOOGLE_API_KEY&language=ko';
+    http.Response response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+      if (data['results'].isNotEmpty) {
+        var location = data['results'][0]['geometry']['location'];
+        LatLng searchedLocation = LatLng(location['lat'], location['lng']);
+        setState(() {
+          _initialPosition =
+              CameraPosition(target: searchedLocation, zoom: 18.0);
+          _userMarker = Marker(
+            markerId: MarkerId('searchedLocation'),
+            position: searchedLocation,
+            draggable: true,
+            onDragEnd: (newPosition) {
+              _getAddressFromLatLng(
+                  newPosition.latitude, newPosition.longitude);
+            },
+          );
+          _suggestions = [];
+          _searchController.clear();
+        });
+
+        final GoogleMapController controller = await _controller.future;
+        controller
+            .animateCamera(CameraUpdate.newCameraPosition(_initialPosition));
+        _getAddressFromLatLng(location['lat'], location['lng']);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('주소를 찾을 수 없습니다.'),
+        ));
+      }
+    } else {
+      throw Exception('Failed to search location');
+    }
+  }
+
   void _navigateToAddressPage() {
     if (_currentPosition != null) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => AddressPage(address: _currentAddress),
+          builder: (context) => AddressPage(
+            address: _currentAddress,
+            previousPage: widget.previousPage,
+          ),
         ),
       );
     } else {
@@ -153,6 +242,41 @@ class _MapPageState extends State<MapPage> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search for a place',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.search),
+                      onPressed: () {
+                        _searchAndNavigate(_searchController.text);
+                      },
+                    ),
+                  ),
+                ),
+                if (_suggestions.isNotEmpty)
+                  ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _suggestions.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        title: Text(_suggestions[index]),
+                        onTap: () {
+                          _searchAndNavigate(_suggestions[index]);
+                        },
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
           Expanded(
             child: GoogleMap(
               mapType: MapType.normal,
@@ -192,6 +316,13 @@ class _MapPageState extends State<MapPage> {
                 ),
                 SizedBox(height: 8.0),
                 ElevatedButton(
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.blue[50],
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(
+                      Radius.circular(10),
+                    )),
+                  ),
                   onPressed: _navigateToAddressPage,
                   child: Text('이 위치로 주소 설정'),
                 ),
@@ -206,8 +337,68 @@ class _MapPageState extends State<MapPage> {
 
 class AddressPage extends StatelessWidget {
   final String address;
+  final String previousPage;
 
-  AddressPage({required this.address});
+  AddressPage({required this.address, required this.previousPage});
+
+  Future<void> _updateUserLocation(String address) async {
+    User? user = FirebaseAuth.instance.currentUser; // 현재 로그인된 사용자 가져오기
+    if (user == null) {
+      print('No user logged in');
+      return;
+    }
+
+    if (user.isAnonymous) {
+      // 익명 사용자일 경우 nonmembers 테이블 업데이트
+      await FirebaseFirestore.instance
+          .collection('nonmembers')
+          .doc(user.uid)
+          .set({'location': address}, SetOptions(merge: true)).catchError(
+              (error) {
+        print('Failed to update nonmember location: $error');
+      });
+    } else {
+      String email = user.email!;
+
+      // 이메일을 통해 Firestore에서 사용자 문서 찾기
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // 문서가 존재하면 업데이트
+        DocumentReference userDoc = querySnapshot.docs[0].reference;
+        await userDoc.update({'location': address}).catchError((error) {
+          print('Failed to update user location: $error');
+        });
+      } else {
+        print('User document not found');
+      }
+    }
+  }
+
+  Future<bool> _isUserRestaurantOwner() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    String email = user.email!;
+    QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .get();
+
+    if (userSnapshot.docs.isNotEmpty) {
+      DocumentSnapshot userDoc = userSnapshot.docs.first;
+      var userData = userDoc.data()
+          as Map<String, dynamic>?; // Check if data is null and cast it
+      if (userData != null && userData.containsKey('registrationNumber')) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -236,9 +427,28 @@ class AddressPage extends StatelessWidget {
             ),
             SizedBox(height: 16.0),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 String detailAddress = _detailAddressController.text;
                 print('Detail Address: $detailAddress');
+                String fullAddress = "$address, $detailAddress";
+
+                // 사용자 위치를 Firestore에 업데이트
+                await _updateUserLocation(fullAddress);
+
+                bool isRestaurantOwner = await _isUserRestaurantOwner();
+
+                // Navigate back to the previous page
+                if (isRestaurantOwner) {
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/regRestaurant', (route) => false,
+                      arguments: fullAddress);
+                } else if (previousPage == 'UserSearch') {
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/search', (route) => false);
+                } else if (previousPage == 'RestaurantEdit') {
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/editRestaurant', (route) => false);
+                }
               },
               child: Text('상세 주소 저장'),
             ),

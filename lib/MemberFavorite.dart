@@ -120,7 +120,18 @@ class _FavoriteState extends State<Favorite> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Favorites'),
+        toolbarHeight: 80,
+        title: Text(
+          '즐겨찾기',
+          style: TextStyle(
+            color: Color(0xFF1C1C21),
+            fontSize: 18,
+            fontFamily: 'Epilogue',
+            fontWeight: FontWeight.w700,
+            height: 0.07,
+            letterSpacing: -0.27,
+          ),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -161,7 +172,6 @@ class _FavoriteState extends State<Favorite> {
                           final isFavorite = snapshot.data ?? false;
 
                           return ListTile(
-                            leading: Icon(Icons.favorite, color: Colors.red),
                             title: Text(item.name),
                             subtitle:
                                 Text("${item.address}, ${item.description}"),
@@ -173,14 +183,8 @@ class _FavoriteState extends State<Favorite> {
                               onPressed: () => _removeFavorite(item),
                             ),
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RestaurantDetailPage(
-                                    restaurantId: item.id,
-                                  ),
-                                ),
-                              );
+                              Navigator.pushNamed(context, '/restaurantInfo',
+                                  arguments: item.id);
                             },
                           );
                         },

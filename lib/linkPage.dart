@@ -46,6 +46,11 @@ class StartPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/map');
                   },
                   child: Text('지도')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/sendingMessage');
+                  },
+                  child: Text('문자')),
             ],
           ),
         ]),

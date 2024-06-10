@@ -172,7 +172,7 @@ class _MemberInfoState extends State<memberInfo> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 40),
+                SizedBox(height: 20),
                 Container(
                   width: 500,
                   child: Divider(color: Colors.black, thickness: 2.0),

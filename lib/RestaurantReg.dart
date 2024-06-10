@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:intl/intl.dart';
+import 'googleMap.dart';
 
 class regRestaurant extends StatefulWidget {
   const regRestaurant({super.key});
@@ -248,6 +248,12 @@ class _RegRestaurantState extends State<regRestaurant> {
     return true;
   }
 
+  void _updateLocation(String location) {
+    setState(() {
+      _location = location;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -318,6 +324,7 @@ class _RegRestaurantState extends State<regRestaurant> {
                     color: Color(0xFF1C1C21),
                     fontSize: 18,
                     fontFamily: 'Epilogue',
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 TextFormField(
@@ -340,34 +347,59 @@ class _RegRestaurantState extends State<regRestaurant> {
                     _restaurantName = value!;
                   },
                 ),
-                SizedBox(height: 50),
-                Text(
-                  '위치',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
+                SizedBox(height: 20),
+                Container(
+                  width: 200,
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(
+                          Radius.circular(10),
+                        )),
+                        side: BorderSide(color: Colors.black)),
+                    onPressed: () async {
+                      final location = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              MapPage(previousPage: 'RestaurantReg'),
+                        ),
+                      );
+                      if (location != null) {
+                        _updateLocation(location);
+                      }
+                    },
+                    child: Text(
+                      '위치 찾기',
+                      style: TextStyle(
+                        color: Color(0xFF1C1C21),
+                        fontSize: 18,
+                        fontFamily: 'Epilogue',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
-                TextFormField(
-                  decoration: InputDecoration(),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '위치를 입력해주세요';
-                    }
-                    return null;
-                  },
-                  onSaved: (value) {
-                    _location = value!;
-                  },
-                ),
-                SizedBox(height: 50),
+                if (_location.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Text(
+                      '선택된 위치: $_location',
+                      style: TextStyle(
+                        color: Color(0xFF1C1C21),
+                        fontSize: 16,
+                        fontFamily: 'Epilogue',
+                      ),
+                    ),
+                  ),
                 Text(
                   '등록번호',
                   style: TextStyle(
                     color: Color(0xFF1C1C21),
                     fontSize: 18,
                     fontFamily: 'Epilogue',
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 TextFormField(
@@ -385,25 +417,39 @@ class _RegRestaurantState extends State<regRestaurant> {
                     _registrationNumber = value!;
                   },
                 ),
-                SizedBox(height: 50),
+                SizedBox(height: 20),
                 Text(
                   '영업시간 (HH:MM ~ HH:MM)',
                   style: TextStyle(
                     color: Color(0xFF1C1C21),
                     fontSize: 18,
                     fontFamily: 'Epilogue',
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+                SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     ElevatedButton(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(
+                          Radius.circular(10),
+                        )),
+                      ),
                       onPressed: () => _selectTime(context, true),
                       child: Text(_startTime != null
                           ? _startTime!.format(context)
                           : '시작 시간 선택'),
                     ),
                     ElevatedButton(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(
+                          Radius.circular(10),
+                        )),
+                      ),
                       onPressed: () => _selectTime(context, false),
                       child: Text(_endTime != null
                           ? _endTime!.format(context)
@@ -411,13 +457,30 @@ class _RegRestaurantState extends State<regRestaurant> {
                     ),
                   ],
                 ),
-                SizedBox(height: 50),
+                SizedBox(height: 20),
+                Text(
+                  '1팀당 평균 대기시간',
+                  style: TextStyle(
+                    color: Color(0xFF1C1C21),
+                    fontSize: 18,
+                    fontFamily: 'Epilogue',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 0, 350, 0),
+                  child: TextFormField(
+                    decoration: InputDecoration(),
+                  ),
+                ),
+                SizedBox(height: 20),
                 Text(
                   '설명',
                   style: TextStyle(
                     color: Color(0xFF1C1C21),
                     fontSize: 18,
                     fontFamily: 'Epilogue',
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 TextFormField(
@@ -442,6 +505,12 @@ class _RegRestaurantState extends State<regRestaurant> {
                 ),
                 SizedBox(height: 40),
                 ElevatedButton(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(
+                      Radius.circular(10),
+                    )),
+                  ),
                   onPressed: _submitForm,
                   child: Text('등록하기'),
                 ),

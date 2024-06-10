@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'MemberCommunityWrite.dart';
 import 'MemberPostDetail.dart';
 import 'UserBottom.dart';
@@ -11,14 +12,33 @@ class CommunityMainPage extends StatefulWidget {
 
 class _CommunityMainPageState extends State<CommunityMainPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _showUserPosts = false;
+  String _searchQuery = '';
 
   Future<List<Map<String, String>>> fetchPosts() async {
-    QuerySnapshot snapshot = await _firestore.collection('community').get();
+    String? userId = _auth.currentUser?.uid;
+    QuerySnapshot snapshot;
+
+    if (_showUserPosts && userId != null) {
+      snapshot = await _firestore
+          .collection('community')
+          .where('author_uid', isEqualTo: userId)
+          .get();
+    } else if (_searchQuery.isNotEmpty) {
+      snapshot = await _firestore
+          .collection('community')
+          .where('title', isGreaterThanOrEqualTo: _searchQuery)
+          .where('title', isLessThanOrEqualTo: _searchQuery + '\uf8ff')
+          .get();
+    } else {
+      snapshot = await _firestore.collection('community').get();
+    }
+
     return snapshot.docs.map((doc) {
       final data = doc.data() as Map<String, dynamic>;
       return data.map((key, value) {
         if (value is Timestamp) {
-          // Timestamp를 String으로 변환
           return MapEntry(key, (value as Timestamp).toDate().toIso8601String());
         }
         return MapEntry(key, value.toString());
@@ -27,16 +47,13 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   }
 
   void navigateToWritePost() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WritePostPage(),
-      ),
-    );
+    final result = await Navigator.pushNamed(context, '/communityWrite');
 
     if (result != null && result is Map<String, String>) {
       setState(() {
-        fetchPosts(); // Fetch posts again to include the new one
+        _showUserPosts = false; // 작성 후 전체 게시물로 돌아가기
+        _searchQuery = ''; // 작성 후 검색어 초기화
+        fetchPosts(); // 새 글 작성 후 데이터 다시 가져오기
       });
     }
   }
@@ -49,12 +66,12 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           post: post,
           onPostDeleted: () {
             setState(() {
-              fetchPosts(); // Fetch posts again to exclude the deleted one
+              fetchPosts(); // 글 삭제 후 데이터 다시 가져오기
             });
           },
           onPostUpdated: (updatedPost) {
             setState(() {
-              fetchPosts(); // Fetch posts again to include the updated one
+              fetchPosts(); // 글 수정 후 데이터 다시 가져오기
             });
           },
         ),
@@ -64,9 +81,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
 
   String formatTimestamp(String timestamp) {
     DateTime dateTime = DateTime.parse(timestamp);
-    String formattedDate =
-        "${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
-    return formattedDate;
+    return "${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -81,6 +96,18 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
             Navigator.of(context).pop();
           },
         ),
+        actions: [
+          IconButton(
+            icon: Icon(_showUserPosts ? Icons.list : Icons.person,
+                color: Colors.black),
+            onPressed: () {
+              setState(() {
+                _showUserPosts = !_showUserPosts;
+                fetchPosts();
+              });
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: EdgeInsets.all(16),
@@ -100,6 +127,20 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                   letterSpacing: -0.27,
                 ),
               ),
+            ),
+            SizedBox(height: 10),
+            TextField(
+              decoration: InputDecoration(
+                labelText: '검색',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                  fetchPosts();
+                });
+              },
             ),
             SizedBox(height: 30),
             Container(

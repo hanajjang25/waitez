@@ -177,12 +177,6 @@ class _MenuRegListState extends State<MenuRegList> {
                                     Text('원산지: ${menuItem.origin}'),
                                   ],
                                 ),
-                                trailing: IconButton(
-                                  icon: Icon(Icons.close),
-                                  onPressed: () {
-                                    _deleteMenuItem(menuItem);
-                                  },
-                                ),
                               );
                             },
                           ),

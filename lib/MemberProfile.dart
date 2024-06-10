@@ -127,6 +127,10 @@ class _ProfileState extends State<Profile> {
     return formatter.format(localDate);
   }
 
+  void _onMorePressed() {
+    Navigator.pushNamed(context, '/historyList');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -216,16 +220,33 @@ class _ProfileState extends State<Profile> {
                 ],
               ),
               SizedBox(height: 30),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '이력조회',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '이력조회',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
+                GestureDetector(
+                  onTap: _onMorePressed,
+                  child: Text(
+                    '더보기 > ',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C21),
+                      fontSize: 15,
+                      fontFamily: 'Epilogue',
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                      height: 0.07,
+                      letterSpacing: -0.27,
+                    ),
+                  ),
+                )
+              ]),
               SizedBox(height: 10),
               ...reservations.map((reservation) {
                 return ReservationCard(

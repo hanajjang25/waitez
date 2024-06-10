@@ -1,6 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'UserWaitingDetail.dart';
+import 'UserBottom.dart';
 
 class waitingNumber extends StatefulWidget {
   @override
@@ -13,6 +17,7 @@ class _WaitingNumberState extends State<waitingNumber> {
   String _nickname = '';
   List<Map<String, dynamic>> _storeReservations = [];
   List<Map<String, dynamic>> _takeoutReservations = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -23,50 +28,92 @@ class _WaitingNumberState extends State<waitingNumber> {
   Future<void> _fetchUserNickname() async {
     User? user = _auth.currentUser;
     if (user != null) {
-      DocumentSnapshot userSnapshot =
-          await _firestore.collection('users').doc(user.uid).get();
-      if (userSnapshot.exists) {
+      try {
+        DocumentSnapshot userSnapshot =
+            await _firestore.collection('users').doc(user.uid).get();
+        if (userSnapshot.exists) {
+          setState(() {
+            _nickname = userSnapshot['nickname'] ?? '';
+          });
+          print('Nickname: $_nickname'); // 디버깅 메시지 추가
+          _fetchConfirmedReservations();
+        } else {
+          print('User document does not exist');
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        print('Error fetching user data: $e');
         setState(() {
-          _nickname = userSnapshot['nickname'] ?? '';
+          _isLoading = false;
         });
-        print('Nickname: $_nickname'); // 디버깅 메시지 추가
-        _fetchConfirmedReservations();
       }
+    } else {
+      print('No user is signed in');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _fetchConfirmedReservations() async {
-    QuerySnapshot reservationSnapshot = await _firestore
-        .collection('reservations')
-        .where('nickname', isEqualTo: _nickname)
-        .where('status', isEqualTo: 'confirmed')
-        .get();
+    try {
+      QuerySnapshot reservationSnapshot = await _firestore
+          .collection('reservations')
+          .where('nickname', isEqualTo: _nickname)
+          .where('status', isEqualTo: 'confirmed')
+          .get();
 
-    List<Map<String, dynamic>> storeReservations = [];
-    List<Map<String, dynamic>> takeoutReservations = [];
+      List<Map<String, dynamic>> storeReservations = [];
+      List<Map<String, dynamic>> takeoutReservations = [];
 
-    reservationSnapshot.docs.forEach((doc) {
-      var reservation = {
-        'type': doc['type'] ?? '',
-        'number': doc['number'] ?? 0,
-        'description': doc['description'] ?? '',
-        'address': doc['address'] ?? '',
-        'orderItems': List<Map<String, dynamic>>.from(doc['orderItems'] ?? []),
-      };
-      if (reservation['type'] == 'store') {
-        storeReservations.add(reservation);
-      } else if (reservation['type'] == 'takeout') {
-        takeoutReservations.add(reservation);
+      DateTime now = DateTime.now();
+      DateTime todayStart = DateTime(now.year, now.month, now.day);
+      DateTime todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+      for (var doc in reservationSnapshot.docs) {
+        var timestamp = (doc['timestamp'] as Timestamp).toDate();
+        if (timestamp.isAfter(todayStart) && timestamp.isBefore(todayEnd)) {
+          print('Document Data: ${doc.data()}'); // 디버깅 메시지 추가
+          var restaurantId = doc['restaurantId'] ?? '';
+          DocumentSnapshot restaurantSnapshot = await _firestore
+              .collection('restaurants')
+              .doc(restaurantId)
+              .get();
+
+          var reservation = {
+            'reservationId': doc.id, // Add the reservation ID here
+            'nickname': doc['nickname'] ?? '',
+            'restaurantName': restaurantSnapshot.exists
+                ? restaurantSnapshot['restaurantName'] ?? ''
+                : 'Unknown',
+            'numberOfPeople': doc['numberOfPeople'] ?? null,
+            'type': doc['type'] == 1 ? '매장' : '포장',
+            'timestamp': timestamp,
+          };
+          if (reservation['type'] == '매장') {
+            storeReservations.add(reservation);
+          } else if (reservation['type'] == '포장') {
+            takeoutReservations.add(reservation);
+          }
+        }
       }
-    });
 
-    setState(() {
-      _storeReservations = storeReservations;
-      _takeoutReservations = takeoutReservations;
-    });
+      setState(() {
+        _storeReservations = storeReservations;
+        _takeoutReservations = takeoutReservations;
+        _isLoading = false;
+      });
 
-    print('Store Reservations: $_storeReservations'); // 디버깅 메시지 추가
-    print('Takeout Reservations: $_takeoutReservations'); // 디버깅 메시지 추가
+      print('Store Reservations: $_storeReservations'); // 디버깅 메시지 추가
+      print('Takeout Reservations: $_takeoutReservations'); // 디버깅 메시지 추가
+    } catch (e) {
+      print('Error fetching reservations: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -76,9 +123,18 @@ class _WaitingNumberState extends State<waitingNumber> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.person, color: Colors.black),
-            Text('대기순번', style: TextStyle(color: Colors.black)),
-            Icon(Icons.menu, color: Colors.black),
+            Padding(
+              padding: EdgeInsets.only(left: 170),
+              child: Text(
+                '대기순번',
+                style: TextStyle(
+                  color: Color(0xFF1C1C21),
+                  fontSize: 18,
+                  fontFamily: 'Epilogue',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ],
         ),
         backgroundColor: Colors.white,
@@ -86,74 +142,81 @@ class _WaitingNumberState extends State<waitingNumber> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _nickname.isEmpty
+        child: _isLoading
             ? Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '매장',
-                      style: TextStyle(
-                        color: Color(0xFF1C1C21),
-                        fontSize: 18,
-                        fontFamily: 'Epilogue',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Divider(color: Colors.black, thickness: 2.0),
+                    _buildSectionTitle('매장'),
                     ..._buildQueueCards(context, _storeReservations),
                     SizedBox(height: 20),
-                    Text(
-                      '포장',
-                      style: TextStyle(
-                        color: Color(0xFF1C1C21),
-                        fontSize: 18,
-                        fontFamily: 'Epilogue',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Divider(color: Colors.black, thickness: 2.0),
+                    _buildSectionTitle('포장'),
                     ..._buildQueueCards(context, _takeoutReservations),
                   ],
                 ),
               ),
       ),
+      bottomNavigationBar: menuButtom(),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: Color(0xFF1C1C21),
+            fontSize: 18,
+            fontFamily: 'Epilogue',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Divider(color: Colors.black, thickness: 2.0),
+      ],
     );
   }
 
   List<Widget> _buildQueueCards(
       BuildContext context, List<Map<String, dynamic>> reservations) {
+    if (reservations.isEmpty) {
+      return [Text('No reservations found.')];
+    }
     return reservations.map((reservation) {
       return _buildQueueCard(
         context,
+        reservation['nickname'],
+        reservation['restaurantName'],
+        reservation['numberOfPeople'],
         reservation['type'],
-        reservation['number'],
-        reservation['description'],
-        reservation['address'],
-        reservation['orderItems'],
+        reservation['timestamp'],
+        reservation['reservationId'], // Pass the reservationId to the card
       );
     }).toList();
   }
 
   Widget _buildQueueCard(
     BuildContext context,
+    String nickname,
+    String restaurantName,
+    int? numberOfPeople,
     String type,
-    int number,
-    String description,
-    String address,
-    List<Map<String, dynamic>> orderItems,
+    DateTime timestamp,
+    String reservationId, // Add reservationId parameter
   ) {
+    final formattedDate = DateFormat('yyyy-MM-dd').format(timestamp);
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => WaitingDetail(
-              restaurantName: description,
-              restaurantAddress: address,
-              queueNumber: number,
-              orderItems: orderItems,
+            builder: (context) => waitingDetail(
+              restaurantName: restaurantName,
+              queueNumber: 2,
+              reservationId:
+                  reservationId, // Pass reservationId to waitingDetail
             ),
           ),
         );
@@ -167,103 +230,59 @@ class _WaitingNumberState extends State<waitingNumber> {
         child: Container(
           padding: EdgeInsets.all(16.0),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Container(
-                height: 50,
                 width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.lightBlueAccent[100],
-                  borderRadius: BorderRadius.circular(8.0),
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Text(
-                    number.toString(),
-                    style: TextStyle(
-                      color: Color(0xFF1C1C21),
-                      fontSize: 18,
-                      fontFamily: 'Epilogue',
-                      fontWeight: FontWeight.w700,
-                    ),
+                    '13',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-              SizedBox(width: 16.0),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              SizedBox(width: 50),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 4.0),
+                  Text(
+                    '$restaurantName',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C21),
+                      fontSize: 14,
+                      fontFamily: 'Epilogue',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (numberOfPeople != null)
                     Text(
-                      description,
+                      '인원수: $numberOfPeople',
                       style: TextStyle(
                         color: Color(0xFF1C1C21),
-                        fontSize: 18,
+                        fontSize: 14,
                         fontFamily: 'Epilogue',
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 4.0),
-                    Text(
-                      address,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                        fontFamily: 'Epilogue',
-                      ),
+                  Text(
+                    '날짜: $formattedDate',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C21),
+                      fontSize: 14,
+                      fontFamily: 'Epilogue',
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class WaitingDetail extends StatelessWidget {
-  final String restaurantName;
-  final String restaurantAddress;
-  final int queueNumber;
-  final List<Map<String, dynamic>> orderItems;
-
-  WaitingDetail({
-    required this.restaurantName,
-    required this.restaurantAddress,
-    required this.queueNumber,
-    required this.orderItems,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(restaurantName),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Address: $restaurantAddress',
-              style: TextStyle(fontSize: 18),
-            ),
-            Text(
-              'Queue Number: $queueNumber',
-              style: TextStyle(fontSize: 18),
-            ),
-            Text(
-              'Order Items:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            ...orderItems.map((item) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: Text('${item['name']} - ${item['quantity']}'),
-              );
-            }).toList(),
-          ],
         ),
       ),
     );

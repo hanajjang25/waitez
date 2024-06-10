@@ -30,10 +30,61 @@ import 'MemberHistory.dart';
 import 'NonMemberHome.dart';
 import 'NonMemberInfo.dart';
 import 'googleMap.dart';
+import 'MemebrHistoryList.dart';
+import 'MemberCommunityWrite.dart';
+import 'communityMyPage.dart';
+import 'notification.dart';
+import 'sendingMessage.dart';
+import 'package:notification_permissions/notification_permissions.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print('Handling a background message ${message.messageId}');
+}
+
+late AndroidNotificationChannel channel;
+late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  channel = const AndroidNotificationChannel(
+    'high_importance_channel', // id
+    'High Importance Notifications', // title
+    description:
+        'This channel is used for important notifications.', // description
+    importance: Importance.high,
+  );
+
+  var initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  var initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+  );
+
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   final status = await Geolocator.checkPermission();
   if (status == LocationPermission.denied) {
     await Geolocator.requestPermission();
@@ -45,7 +96,51 @@ void main() async {
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    FlutterLocalNotification.init();
+    super.initState();
+
+    // Listen for messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+      var androidNotiDetails = AndroidNotificationDetails(
+        channel.id,
+        channel.name,
+        channelDescription: channel.description,
+      );
+      var details = NotificationDetails(android: androidNotiDetails);
+      if (notification != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          details,
+        );
+      }
+    });
+
+    // Handle app opened from a notification
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      print(message);
+    });
+
+    // Get FCM token
+    _getToken();
+  }
+
+  void _getToken() async {
+    String? token = await FirebaseMessaging.instance.getToken();
+    print("token : ${token ?? 'token NULL!'}");
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -62,16 +157,7 @@ class MyApp extends StatelessWidget {
               );
             }
             return _errorRoute();
-          //case '/menuEditDetail':
-          //  if (settings.arguments is MenuEditDetailArguments) {
-          //    final MenuEditDetailArguments args =
-          //        settings.arguments as MenuEditDetailArguments;
-          //    return MaterialPageRoute(
-          //      builder: (context) =>
-          //         MenuEditDetail(menuItemId: args.menuItemId),
-          //    );
-          //  }
-          //  return _errorRoute();
+          // Add other routes that require arguments here if necessary
           default:
             return null;
         }
@@ -94,14 +180,19 @@ class MyApp extends StatelessWidget {
         '/cart': (context) => Cart(),
         '/reservation': (context) => Reservation(),
         '/community': (context) => CommunityMainPage(),
+        '/communityMyPage': (context) => communityMyPage(),
+        '/communityWrite': (context) => WritePostPage(),
         '/profile': (context) => Profile(),
         '/reservationMenu': (context) => UserReservationMenu(),
         '/menuEdit': (context) => MenuEdit(),
         '/staffProfile': (context) => staffProfile(),
         '/setting': (context) => setting(),
         '/noti': (context) => noti(),
+        '/sendingMessage': (context) => sendingMessage(),
         '/nonMemberHome': (context) => nonMemberHome(),
         '/nonMemberInfo': (context) => nonMemberInfo(),
+        '/historyList': (context) => historyList(),
+
         '/history': (context) => History(
               restaurantName: '이력조회 샘플 레스토랑',
               date: '2024-05-30 12:00',
@@ -112,7 +203,7 @@ class MyApp extends StatelessWidget {
                 {'name': 'Item 3', 'price': 15000, 'quantity': 1},
               ],
             ),
-        '/map': (context) => MapPage(),
+        // '/sendSMS': (context) => messagesend(),
       },
     );
   }
@@ -129,10 +220,4 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
-}
-
-class MenuEditDetailArguments {
-  final String menuItemId;
-
-  MenuEditDetailArguments(this.menuItemId);
 }

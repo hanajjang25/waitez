@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'googleMap.dart';
 
 class editregRestaurant extends StatefulWidget {
   const editregRestaurant({super.key});
@@ -336,42 +337,93 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 20),
+                      SizedBox(height: 50),
+                      Text(
+                        '음식점 이름',
+                        style: TextStyle(
+                          color: Color(0xFF1C1C21),
+                          fontSize: 18,
+                          fontFamily: 'Epilogue',
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       TextFormField(
                         initialValue: _restaurantName,
-                        decoration: InputDecoration(
-                          labelText: '음식점 이름',
-                          border: OutlineInputBorder(),
-                        ),
+                        decoration: InputDecoration(),
                         readOnly: true, // 음식점 이름은 수정 불가
                       ),
-                      SizedBox(height: 10),
+                      SizedBox(height: 15),
+                      Container(
+                        width: 200,
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              )),
+                              side: BorderSide(color: Colors.black)),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    MapPage(previousPage: 'RestaurantEdit'),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            '위치 찾기',
+                            style: TextStyle(
+                              color: Color(0xFF1C1C21),
+                              fontSize: 18,
+                              fontFamily: 'Epilogue',
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 15),
+                      Text(
+                        '위치',
+                        style: TextStyle(
+                          color: Color(0xFF1C1C21),
+                          fontSize: 18,
+                          fontFamily: 'Epilogue',
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       TextFormField(
                         initialValue: _location,
-                        decoration: InputDecoration(
-                          labelText: '위치',
-                          border: OutlineInputBorder(),
-                        ),
+                        decoration: InputDecoration(),
                         readOnly: true, // 위치는 수정 불가
                       ),
-                      SizedBox(height: 10),
+                      SizedBox(height: 20),
+                      Text(
+                        '등록번호',
+                        style: TextStyle(
+                          color: Color(0xFF1C1C21),
+                          fontSize: 18,
+                          fontFamily: 'Epilogue',
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       TextFormField(
                         initialValue: _registrationNumber,
-                        decoration: InputDecoration(
-                          labelText: '등록번호',
-                          border: OutlineInputBorder(),
-                        ),
+                        decoration: InputDecoration(),
                         readOnly: true, // 등록번호는 수정 불가
                       ),
-                      SizedBox(height: 10),
+                      SizedBox(height: 20),
                       Text(
                         '영업시간 (HH:MM ~ HH:MM)',
                         style: TextStyle(
                           color: Color(0xFF1C1C21),
                           fontSize: 18,
                           fontFamily: 'Epilogue',
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                      SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -389,14 +441,20 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 10),
+                      SizedBox(height: 20),
+                      Text(
+                        '설명',
+                        style: TextStyle(
+                          color: Color(0xFF1C1C21),
+                          fontSize: 18,
+                          fontFamily: 'Epilogue',
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       TextFormField(
                         initialValue: _description,
                         maxLines: 3,
-                        decoration: InputDecoration(
-                          labelText: '설명',
-                          border: OutlineInputBorder(),
-                        ),
+                        decoration: InputDecoration(),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return '음식점에 대한 설명을 입력해주세요';

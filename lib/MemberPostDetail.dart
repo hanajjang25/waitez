@@ -22,12 +22,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
   final TextEditingController _commentController = TextEditingController();
   final List<bool> _isEditing = [];
   final List<TextEditingController> _editControllers = [];
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  User? _currentUser;
+  String? _currentNickname;
 
   bool _isEditingPost = false;
   late TextEditingController _titleController;
   late TextEditingController _contentController;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  User? _currentUser;
 
   @override
   void initState() {
@@ -38,8 +39,24 @@ class _PostDetailPageState extends State<PostDetailPage> {
       setState(() {
         _currentUser = user;
       });
+      if (user != null) {
+        _fetchNickname(user.email);
+      }
     });
     loadComments();
+  }
+
+  Future<void> _fetchNickname(String? email) async {
+    if (email == null) return;
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .get();
+    if (userDoc.docs.isNotEmpty) {
+      setState(() {
+        _currentNickname = userDoc.docs.first.data()['nickname'];
+      });
+    }
   }
 
   void loadComments() async {
@@ -81,7 +98,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       }
 
       final newComment = {
-        'author': _currentUser!.displayName ?? _currentUser!.email ?? 'Unknown',
+        'author': _currentNickname ?? _currentUser!.email ?? 'Unknown',
         'date': DateTime.now().toIso8601String().substring(0, 10),
         'content': _commentController.text,
       };

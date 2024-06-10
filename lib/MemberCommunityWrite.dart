@@ -116,8 +116,7 @@ class _WritePostPageState extends State<WritePostPage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        _showErrorDialog('글쓰기 실패하였습니다');
-        return true;
+        return true; // Allow back navigation without any additional actions
       },
       child: Scaffold(
         appBar: AppBar(

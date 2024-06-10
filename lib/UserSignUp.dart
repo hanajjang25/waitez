@@ -27,6 +27,8 @@ class _SignUpState extends State<SignUp> {
   final FocusNode _resNumFocusNode = FocusNode();
   final FocusNode _phoneNumFocusNode = FocusNode();
 
+  final ScrollController _scrollController = ScrollController();
+
   bool _passwordsMatch = true;
   bool _emailVerified = false;
   User? _currentUser;
@@ -197,6 +199,50 @@ class _SignUpState extends State<SignUp> {
         emailVerified;
   }
 
+  void _scrollToFocusedNode(FocusNode focusNode) {
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) {
+        _scrollController.animateTo(
+          _scrollController.position.minScrollExtent,
+          duration: Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollToFocusedNode(_nicknameFocusNode);
+    _scrollToFocusedNode(_emailFocusNode);
+    _scrollToFocusedNode(_passwordFocusNode);
+    _scrollToFocusedNode(_passwordConfirmFocusNode);
+    _scrollToFocusedNode(_resNumFocusNode);
+    _scrollToFocusedNode(_phoneNumFocusNode);
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _passwordConfirmController.dispose();
+    _resNumController.dispose();
+    _phoneNumController.dispose();
+
+    _nicknameFocusNode.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _passwordConfirmFocusNode.dispose();
+    _resNumFocusNode.dispose();
+    _phoneNumFocusNode.dispose();
+
+    _scrollController.dispose();
+
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -205,6 +251,7 @@ class _SignUpState extends State<SignUp> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: SingleChildScrollView(
+        controller: _scrollController,
         child: Container(
           width: screenWidth,
           height: screenHeight,

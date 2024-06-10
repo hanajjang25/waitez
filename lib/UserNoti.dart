@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'notification.dart';
 
 class noti extends StatefulWidget {
   const noti({super.key});
@@ -20,6 +22,49 @@ class _NotiState extends State<noti> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  void _loadPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      smsAlert = prefs.getBool('smsAlert') ?? false;
+      appAlert = prefs.getBool('appAlert') ?? false;
+    });
+  }
+
+  void _savePreference(String key, bool value) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+  }
+
+  void _toggleAppAlert() {
+    if (!mounted) return;
+    setState(() {
+      appAlert = !appAlert;
+      _savePreference('appAlert', appAlert);
+      debugPrint("App Alert: $appAlert");
+    });
+  }
+
+  void _toggleSmsAlert() {
+    if (!mounted) return;
+    setState(() {
+      smsAlert = !smsAlert;
+      _savePreference('smsAlert', smsAlert);
+      debugPrint("SMS Alert: $smsAlert");
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -33,9 +78,7 @@ class _NotiState extends State<noti> {
             trailing: Switch(
               value: smsAlert,
               onChanged: (value) {
-                setState(() {
-                  smsAlert = value;
-                });
+                _toggleSmsAlert();
               },
             ),
           ),
@@ -45,9 +88,7 @@ class _NotiState extends State<noti> {
             trailing: Switch(
               value: appAlert,
               onChanged: (value) {
-                setState(() {
-                  appAlert = value;
-                });
+                _toggleAppAlert();
               },
             ),
           ),
@@ -78,7 +119,6 @@ class _NotiState extends State<noti> {
                   leading: Icon(Icons.notifications),
                   title: Text(notifications[index]),
                   onTap: () {
-                    // 각 알림을 클릭했을 때의 동작을 정의합니다.
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
@@ -96,12 +136,19 @@ class _NotiState extends State<noti> {
                         );
                       },
                     );
+                    NotificationService.sendSmsNotification(
+                        notifications[index], ["01023209299"]);
                   },
                 );
               },
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _toggleAppAlert,
+        child: Icon(
+            appAlert ? Icons.notifications_active : Icons.notifications_off),
       ),
     );
   }

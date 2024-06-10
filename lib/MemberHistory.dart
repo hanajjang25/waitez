@@ -24,7 +24,17 @@ class History extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Image.network(imageAsset),
+            Container(
+              width: double.infinity,
+              height: MediaQuery.of(context).size.height * 0.3,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.0),
+                child: Image.network(
+                  imageAsset,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
             SizedBox(height: 30),
             Text(
               restaurantName,
@@ -33,7 +43,29 @@ class History extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 30),
+            Text(
+              '주소 : 서울시 강남구',
+              style: TextStyle(
+                color: Color(0xFF1C1C21),
+                fontSize: 18,
+                fontFamily: 'Epilogue',
+                height: 0.07,
+                letterSpacing: -0.27,
+              ),
+            ),
+            SizedBox(height: 30),
+            Text(
+              '영업시간 : 09:00-12:00',
+              style: TextStyle(
+                color: Color(0xFF1C1C21),
+                fontSize: 18,
+                fontFamily: 'Epilogue',
+                height: 0.07,
+                letterSpacing: -0.27,
+              ),
+            ),
+            SizedBox(height: 30),
             Text(
               date,
               style: TextStyle(

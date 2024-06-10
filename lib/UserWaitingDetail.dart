@@ -1,20 +1,19 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'UserBottom.dart';
 import 'UserCart.dart'; // Import the Cart page
 
 class waitingDetail extends StatefulWidget {
   final String restaurantName;
-  final String restaurantAddress;
   final int queueNumber;
-  final List<Map<String, dynamic>> orderItems;
+  final String reservationId; // Add reservationId as a parameter
 
   waitingDetail({
     required this.restaurantName,
-    required this.restaurantAddress,
     required this.queueNumber,
-    required this.orderItems,
+    required this.reservationId, // Initialize reservationId
   });
 
   @override
@@ -24,6 +23,82 @@ class waitingDetail extends StatefulWidget {
 class _waitingDetailState extends State<waitingDetail> {
   bool isRestaurantSelected = true;
   bool isFavorite = false;
+  String? restaurantAddress;
+  List<Map<String, dynamic>> orderItems = [];
+  int totalAmount = 0;
+
+  static const CameraPosition initialCameraPosition = CameraPosition(
+    target: LatLng(37.7749, -122.4194),
+    zoom: 14.0,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRestaurantAddress();
+    _fetchOrderDetails();
+  }
+
+  Future<void> _fetchRestaurantAddress() async {
+    try {
+      // Fetch restaurant address from Firestore
+      var restaurantSnapshot = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .where('restaurantName', isEqualTo: widget.restaurantName)
+          .limit(1)
+          .get();
+
+      if (restaurantSnapshot.docs.isNotEmpty) {
+        setState(() {
+          restaurantAddress = restaurantSnapshot.docs.first['location'];
+        });
+      } else {
+        setState(() {
+          restaurantAddress = '주소를 찾을 수 없습니다.';
+        });
+      }
+    } catch (e) {
+      print('Error fetching restaurant address: $e');
+      setState(() {
+        restaurantAddress = '주소를 찾을 수 없습니다.';
+      });
+    }
+  }
+
+  Future<void> _fetchOrderDetails() async {
+    try {
+      // Fetch order details from Firestore
+      var orderSnapshot = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('restaurantId', isEqualTo: widget.reservationId)
+          .where('reservationId', isEqualTo: widget.reservationId)
+          .get();
+
+      if (orderSnapshot.docs.isNotEmpty) {
+        List<Map<String, dynamic>> items = [];
+        int total = 0;
+
+        for (var doc in orderSnapshot.docs) {
+          var item = doc.data();
+          int price = item['price'] is int
+              ? item['price']
+              : (item['price'] as num).toInt();
+          int quantity = item['quantity'] is int
+              ? item['quantity']
+              : (item['quantity'] as num).toInt();
+          items.add(item);
+          total += price * quantity;
+        }
+
+        setState(() {
+          orderItems = items;
+          totalAmount = total;
+        });
+      }
+    } catch (e) {
+      print('Error fetching order details: $e');
+    }
+  }
 
   void toggleFavorite() {
     setState(() {
@@ -46,9 +121,26 @@ class _waitingDetailState extends State<waitingDetail> {
               child: Text('취소'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushNamed(context, '/waitingNumber');
+              onPressed: () async {
+                try {
+                  // Firestore에서 예약을 삭제
+                  await FirebaseFirestore.instance
+                      .collection('reservations')
+                      .doc(widget.reservationId)
+                      .delete();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('예약이 취소되었습니다.')),
+                  );
+
+                  Navigator.of(context).pop();
+                  Navigator.pushNamed(context, '/waitingNumber');
+                } catch (e) {
+                  print('Error deleting reservation: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('예약 취소 중 오류가 발생했습니다.')),
+                  );
+                }
               },
               child: Text('확인'),
             ),
@@ -58,29 +150,8 @@ class _waitingDetailState extends State<waitingDetail> {
     );
   }
 
-  void _editCart() async {
-    final updatedOrderItems = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Cart(),
-      ),
-    );
-
-    if (updatedOrderItems != null) {
-      setState(() {
-        widget.orderItems.clear();
-        widget.orderItems.addAll(updatedOrderItems);
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    int totalPrice = widget.orderItems.fold<int>(
-      0,
-      (sum, item) => sum + (item['price'] as int) * (item['quantity'] as int),
-    );
-
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -110,7 +181,17 @@ class _waitingDetailState extends State<waitingDetail> {
                 ),
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 20),
+            Center(
+              child: Text(
+                '(한 팀당 평균 대기 시간 : 20분)',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -133,8 +214,9 @@ class _waitingDetailState extends State<waitingDetail> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            InfoInputScreen(numberOfPeople: 2),
+                        builder: (context) => InfoInputScreen(
+                            reservationId: widget
+                                .reservationId), // Pass reservationId to InfoInputScreen
                       ),
                     );
                   },
@@ -159,7 +241,8 @@ class _waitingDetailState extends State<waitingDetail> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => Cart(), // 대기순번 페이지에서 온 경우
+                        builder: (context) =>
+                            Cart(), // Pass reservationId if needed
                       ),
                     );
                   },
@@ -281,24 +364,10 @@ class _waitingDetailState extends State<waitingDetail> {
                                   ),
                                 ],
                               ),
-                              Container(
-                                height: 30,
-                                width: 40,
-                                decoration: BoxDecoration(
-                                    border: Border.all(),
-                                    borderRadius: BorderRadius.circular(5)),
-                                child: Center(
-                                  child: Text("주소",
-                                      style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold)),
-                                ),
-                              ),
                               SizedBox(height: 5),
                               Text(
-                                widget.restaurantAddress,
-                                style:
-                                    TextStyle(fontSize: 16, color: Colors.grey),
+                                restaurantAddress ?? '',
+                                style: TextStyle(fontSize: 15),
                               ),
                             ],
                           ),
@@ -320,19 +389,19 @@ class _waitingDetailState extends State<waitingDetail> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 20),
+                      SizedBox(
+                        height: 20,
+                      ),
                       Center(
                         child: Container(
-                          width: 358,
+                          width: 400,
                           height: 300,
-                          decoration: BoxDecoration(
-                            image: DecorationImage(
-                                image: AssetImage("assets/images/map.png"),
-                                fit: BoxFit.fill),
-                            borderRadius: BorderRadius.circular(12),
+                          child: GoogleMap(
+                            initialCameraPosition: initialCameraPosition,
                           ),
                         ),
                       ),
+                      SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -350,33 +419,24 @@ class _waitingDetailState extends State<waitingDetail> {
                     SizedBox(height: 10),
                     Expanded(
                       child: ListView.builder(
-                        itemCount: widget.orderItems.length,
+                        itemCount: orderItems.length,
                         itemBuilder: (context, index) {
+                          var item = orderItems[index];
                           return ListTile(
-                            title: Text(widget.orderItems[index]['name']),
-                            subtitle:
-                                Text('${widget.orderItems[index]['price']}원'),
-                            trailing: Text(
-                                'x${widget.orderItems[index]['quantity']}'),
+                            title: Text(item['menuName']),
+                            subtitle: Text('수량: ${item['quantity']}'),
+                            trailing: Text('${item['price']}원'),
                           );
                         },
                       ),
                     ),
-                    SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '총 금액',
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '$totalPrice원',
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                      ],
+                    SizedBox(height: 10),
+                    Text(
+                      '총 금액: $totalAmount원',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -390,21 +450,50 @@ class _waitingDetailState extends State<waitingDetail> {
 }
 
 class InfoInputScreen extends StatefulWidget {
-  final int numberOfPeople;
+  final String reservationId;
 
-  InfoInputScreen({required this.numberOfPeople});
+  InfoInputScreen({required this.reservationId});
 
   @override
   _InfoInputScreenState createState() => _InfoInputScreenState();
 }
 
 class _InfoInputScreenState extends State<InfoInputScreen> {
-  late int numberOfPeople;
+  String nickname = '';
+  int numberOfPeople = 1;
+  bool isTakeout = false;
+  final TextEditingController _nicknameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _altPhoneController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    numberOfPeople = widget.numberOfPeople;
+    _fetchReservationDetails();
+  }
+
+  Future<void> _fetchReservationDetails() async {
+    try {
+      // Fetch reservation details from Firestore
+      var reservationSnapshot = await FirebaseFirestore.instance
+          .collection('reservations')
+          .doc(widget.reservationId)
+          .get();
+
+      if (reservationSnapshot.exists) {
+        var data = reservationSnapshot.data()!;
+        setState(() {
+          nickname = data['nickname'];
+          numberOfPeople = data['numberOfPeople'];
+          isTakeout = data['type'] == 2; // Assuming type 2 means takeout
+          _nicknameController.text = nickname;
+          _phoneController.text = data['phone'] ?? '';
+          _altPhoneController.text = data['altPhone'] ?? '';
+        });
+      }
+    } catch (e) {
+      print('Error fetching reservation details: $e');
+    }
   }
 
   @override
@@ -424,17 +513,68 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              '매장/포장인지 보여주는곳!!!',
+              style: TextStyle(
+                color: Color(0xFF1C1C21),
+                fontSize: 18,
+                fontFamily: 'Epilogue',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             SizedBox(height: 50),
             Text(
-              '이름',
+              '닉네임',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
                 fontFamily: 'Epilogue',
               ),
             ),
-            TextFormField(
+            TextField(
+              controller: _nicknameController,
+              enabled: false, // Disable editing
               decoration: InputDecoration(),
+            ),
+            SizedBox(height: 20),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '인원수',
+                  style: TextStyle(
+                    color: Color(0xFF1C1C21),
+                    fontSize: 18,
+                    fontFamily: 'Epilogue',
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                        icon: Icon(Icons.remove),
+                        onPressed: isTakeout
+                            ? null
+                            : () {
+                                setState(() {
+                                  if (numberOfPeople > 0) {
+                                    numberOfPeople--;
+                                  }
+                                });
+                              }),
+                    Text('$numberOfPeople'),
+                    IconButton(
+                        icon: Icon(Icons.add),
+                        onPressed: isTakeout
+                            ? null
+                            : () {
+                                setState(() {
+                                  numberOfPeople++;
+                                });
+                              }),
+                  ],
+                ),
+              ],
             ),
             SizedBox(height: 30),
             Text(
@@ -445,7 +585,9 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
                 fontFamily: 'Epilogue',
               ),
             ),
-            TextFormField(
+            TextField(
+              controller: _phoneController,
+              enabled: false, // Disable editing
               decoration: InputDecoration(),
             ),
             SizedBox(height: 30),
@@ -457,13 +599,23 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
                 fontFamily: 'Epilogue',
               ),
             ),
-            TextFormField(
+            TextField(
+              controller: _altPhoneController,
               decoration: InputDecoration(),
             ),
             SizedBox(height: 100),
             Center(
               child: ElevatedButton(
                 onPressed: () {
+                  // Update reservation details in Firestore
+                  FirebaseFirestore.instance
+                      .collection('reservations')
+                      .doc(widget.reservationId)
+                      .update({
+                    'numberOfPeople': numberOfPeople,
+                    'altPhone': _altPhoneController.text,
+                  });
+
                   Navigator.pop(context); // 이전 페이지로 돌아가기
                 },
                 child: Text('수정'),

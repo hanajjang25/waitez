@@ -101,208 +101,230 @@ class _LoginState extends State<login> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      body: Container(
-        width: screenWidth,
-        height: screenHeight,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.48),
-              ),
-            ),
-            Positioned(
-              left: screenWidth * 0.05,
-              top: screenHeight * 0.1 + 200,
-              child: Container(
-                width: screenWidth * 0.9,
-                height: screenHeight * 0.7,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(36),
+      body: SingleChildScrollView(
+        child: Container(
+          width: screenWidth,
+          height: screenHeight,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.48),
                 ),
-                child: Column(
-                  children: [
-                    SizedBox(height: 20),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 170),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Color(0xFFD2D4D8),
-                            width: 4,
-                            style: BorderStyle.solid,
+              ),
+              Positioned(
+                left: screenWidth * 0.05,
+                top: screenHeight * 0.1 + 200,
+                child: Container(
+                  width: screenWidth * 0.9,
+                  height:
+                      screenHeight * 0.8, // Increase height to allow scrolling
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(36),
+                  ),
+                  child: Column(
+                    children: [
+                      SizedBox(height: 20),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 170),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Color(0xFFD2D4D8),
+                              width: 4,
+                              style: BorderStyle.solid,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 20),
-                    Transform.translate(
-                      offset: Offset(-10, 0),
-                      child: Container(
-                        padding: EdgeInsets.all(20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.only(right: 10),
-                              child: TextButton(
+                      SizedBox(height: 20),
+                      Transform.translate(
+                        offset: Offset(-10, 0),
+                        child: Container(
+                          padding: EdgeInsets.all(20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(right: 10),
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.pushNamed(context, '/signup');
+                                  },
+                                  child: Text(
+                                    '회원가입',
+                                    style: TextStyle(
+                                      color: Color(0xFF89909E),
+                                      fontSize: 16,
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 80),
+                              TextButton(
                                 onPressed: () {
-                                  Navigator.pushNamed(context, '/signup');
+                                  Navigator.pushNamed(context, '/login');
                                 },
                                 child: Text(
-                                  '회원가입',
+                                  '로그인',
                                   style: TextStyle(
-                                    color: Color(0xFF89909E),
+                                    color: Color(0xFF1A94FF),
                                     fontSize: 16,
                                     fontFamily: 'Inter',
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ),
-                            ),
-                            SizedBox(width: 80),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pushNamed(context, '/login');
-                              },
-                              child: Text(
-                                '로그인',
-                                style: TextStyle(
-                                  color: Color(0xFF1A94FF),
-                                  fontSize: 16,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            )
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 50),
-                    Padding(
-                      padding: EdgeInsets.all(20),
-                      child: TextField(
-                        controller: _emailController,
-                        decoration: InputDecoration(
-                          labelText: '이메일',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                              )
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(20, 10, 20, 5),
-                      child: TextField(
-                        controller: _passwordController,
-                        decoration: InputDecoration(
-                          labelText: '비밀번호',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        obscureText: true,
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(left: 200),
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/findPassword');
-                        },
-                        child: Text(
-                          '비밀번호 찾기',
-                          style: TextStyle(
-                            color: Color(0xFF1A94FF),
-                            fontSize: 16,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
+                      SizedBox(height: 50),
+                      Padding(
                         padding: EdgeInsets.all(20),
-                        child: Divider(color: Colors.grey, thickness: 2.0)),
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/nonMemberInfo');
-                        },
-                        child: Text(
-                          '비회원으로 예약하기',
-                          style: TextStyle(
-                            color: Colors.blueGrey,
-                            fontSize: 16,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
+                        child: TextField(
+                          controller: _emailController,
+                          decoration: InputDecoration(
+                            labelText: '이메일',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _isFormValid
-                          ? () async {
-                              if (_emailController.text.trim().isEmpty ||
-                                  _passwordController.text.trim().isEmpty) {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text('Error'),
-                                      content: Text(
-                                          'Please check email and password'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: Text('OK'),
-                                        ),
-                                      ],
-                                    );
-                                  },
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(20, 10, 20, 5),
+                        child: TextField(
+                          controller: _passwordController,
+                          decoration: InputDecoration(
+                            labelText: '비밀번호',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          obscureText: true,
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.only(left: 200),
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/findPassword');
+                          },
+                          child: Text(
+                            '비밀번호 찾기',
+                            style: TextStyle(
+                              color: Color(0xFF1A94FF),
+                              fontSize: 16,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Divider(color: Colors.grey, thickness: 2.0)),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/nonMemberInfo');
+                          },
+                          child: Text(
+                            '비회원으로 예약하기',
+                            style: TextStyle(
+                              color: Colors.blueGrey,
+                              fontSize: 16,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _isFormValid
+                            ? () async {
+                                if (_emailController.text.trim().isEmpty ||
+                                    _passwordController.text.trim().isEmpty) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text('Error'),
+                                        content: Text(
+                                            'Please check email and password'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(context).pop();
+                                            },
+                                            child: Text('OK'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                  return;
+                                }
+
+                                String loginResult = await emailLogin(
+                                  email: _emailController.text.trim(),
+                                  password: _passwordController.text.trim(),
                                 );
-                                return;
-                              }
 
-                              String loginResult = await emailLogin(
-                                email: _emailController.text.trim(),
-                                password: _passwordController.text.trim(),
-                              );
+                                if (loginResult == "success") {
+                                  var email = _emailController.text.trim();
+                                  var userDoc = await _firestore
+                                      .collection('users')
+                                      .where('email', isEqualTo: email)
+                                      .get();
 
-                              if (loginResult == "success") {
-                                var email = _emailController.text.trim();
-                                var userDoc = await _firestore
-                                    .collection('users')
-                                    .where('email', isEqualTo: email)
-                                    .get();
-
-                                if (userDoc.docs.isNotEmpty) {
-                                  var userData = userDoc.docs.first.data();
-                                  if (userData.containsKey('nickname')) {
-                                    if (userData.containsKey('resNum') &&
-                                        userData['resNum'] != null &&
-                                        userData['resNum'].isNotEmpty) {
-                                      Navigator.pushNamed(
-                                          context, '/homeStaff');
+                                  if (userDoc.docs.isNotEmpty) {
+                                    var userData = userDoc.docs.first.data();
+                                    if (userData.containsKey('nickname')) {
+                                      if (userData.containsKey('resNum') &&
+                                          userData['resNum'] != null &&
+                                          userData['resNum'].isNotEmpty) {
+                                        Navigator.pushNamed(
+                                            context, '/homeStaff');
+                                      } else {
+                                        Navigator.pushNamed(context, '/home');
+                                      }
                                     } else {
-                                      Navigator.pushNamed(context, '/home');
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text('로그인실패'),
+                                            content:
+                                                Text('이메일 및 비밀번호가 일치하지 않습니다.'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.of(context).pop();
+                                                },
+                                                child: Text('OK'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
                                     }
                                   } else {
                                     showDialog(
                                       context: context,
                                       builder: (BuildContext context) {
                                         return AlertDialog(
-                                          title: Text('로그인실패'),
+                                          title: Text('로그인 오류'),
                                           content:
-                                              Text('이메일 및 비밀번호가 일치하지 않습니다.'),
+                                              Text('아이디 및 비밀번호가 일치하지 않습니다.'),
                                           actions: [
                                             TextButton(
                                               onPressed: () {
@@ -316,12 +338,25 @@ class _LoginState extends State<login> {
                                     );
                                   }
                                 } else {
+                                  String errorMessage;
+                                  switch (loginResult) {
+                                    case 'userNotFound':
+                                      errorMessage = '회원이 존재하지 않습니다.';
+                                      break;
+                                    case 'wrongPassword':
+                                      errorMessage = '비밀번호가 일치하지 않습니다.';
+                                      break;
+                                    case 'fail':
+                                    default:
+                                      errorMessage = '로그인에 실패하였습니다. 다시 시도하세요.';
+                                      break;
+                                  }
                                   showDialog(
                                     context: context,
                                     builder: (BuildContext context) {
                                       return AlertDialog(
                                         title: Text('로그인 오류'),
-                                        content: Text('아이디 및 비밀번호가 일치하지 않습니다.'),
+                                        content: Text(errorMessage),
                                         actions: [
                                           TextButton(
                                             onPressed: () {
@@ -334,63 +369,34 @@ class _LoginState extends State<login> {
                                     },
                                   );
                                 }
-                              } else {
-                                String errorMessage;
-                                switch (loginResult) {
-                                  case 'userNotFound':
-                                    errorMessage = '회원이 존재하지 않습니다.';
-                                    break;
-                                  case 'wrongPassword':
-                                    errorMessage = '비밀번호가 일치하지 않습니다.';
-                                    break;
-                                  case 'fail':
-                                  default:
-                                    errorMessage = '로그인에 실패하였습니다. 다시 시도하세요.';
-                                    break;
-                                }
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text('로그인 오류'),
-                                      content: Text(errorMessage),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: Text('OK'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
                               }
-                            }
-                          : null,
-                      child: Text('login'),
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all(_isFormValid
-                            ? Color(0xFF1A94FF)
-                            : Color(0xFFF4F4F4)),
-                        foregroundColor: MaterialStateProperty.all(
-                            _isFormValid ? Colors.white : Colors.black),
-                        minimumSize: MaterialStateProperty.all(Size(200, 50)),
-                        padding: MaterialStateProperty.all(
-                            EdgeInsets.symmetric(horizontal: 30)),
-                        elevation: MaterialStateProperty.all(0),
-                        shape: MaterialStateProperty.all(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            : null,
+                        child: Text('login'),
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.all(
+                              _isFormValid
+                                  ? Color(0xFF1A94FF)
+                                  : Color(0xFFF4F4F4)),
+                          foregroundColor: MaterialStateProperty.all(
+                              _isFormValid ? Colors.white : Colors.black),
+                          minimumSize: MaterialStateProperty.all(Size(200, 50)),
+                          padding: MaterialStateProperty.all(
+                              EdgeInsets.symmetric(horizontal: 30)),
+                          elevation: MaterialStateProperty.all(0),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 20), // Add space at the bottom
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
