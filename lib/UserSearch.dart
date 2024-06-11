@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:waitez/reservationBottom.dart';
-import 'reservationBottom.dart'; // Assume this widget exists
+import 'reservationBottom.dart';
 import 'MemberFavorite.dart';
 import 'RestaurantInfo.dart';
 import 'googleMap.dart';
@@ -54,7 +53,7 @@ class _SearchState extends State<search> {
   List<SearchDetails> filteredItems = [];
   String? _locationKeyword;
   String? _searchKeyword;
-  String _currentLocation = "Loading location...";
+  String? _currentLocation;
 
   @override
   void initState() {
@@ -284,13 +283,6 @@ class _SearchState extends State<search> {
                 ),
               ),
             ]),
-            if (_currentLocation != null)
-              TextFormField(
-                decoration: InputDecoration(),
-                initialValue: _currentLocation,
-                readOnly: true,
-              ),
-            if (_currentLocation == null) CircularProgressIndicator(),
             SizedBox(height: 20),
             TextField(
               onChanged: (value) => _updateSearch(value),
@@ -307,60 +299,64 @@ class _SearchState extends State<search> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView.builder(
-                itemCount: filteredItems.length,
-                itemBuilder: (context, index) {
-                  var item = filteredItems[index];
-                  return FutureBuilder<bool>(
-                    future: _isFavorite(item),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return CircularProgressIndicator();
-                      }
+              child: filteredItems.isEmpty
+                  ? Center(child: Text('해당하는 음식점 또는 메뉴가 존재하지 않습니다'))
+                  : ListView.builder(
+                      itemCount: filteredItems.length,
+                      itemBuilder: (context, index) {
+                        var item = filteredItems[index];
+                        return FutureBuilder<bool>(
+                          future: _isFavorite(item),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return CircularProgressIndicator();
+                            }
 
-                      final isFavorite = snapshot.data ?? false;
+                            final isFavorite = snapshot.data ?? false;
 
-                      return Card(
-                        color: Colors.blue[50],
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          leading: Image.network(
-                            item.photoUrl,
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
-                          ),
-                          title: Text(item.name),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Address: ${item.address}"),
-                              Text("Description: ${item.description}"),
-                              Text("Business Hours: ${item.businessHours}"),
-                              Text(
-                                  "Menu: ${item.menuItems.map((menuItem) => menuItem['menuName']).join(', ')}"),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(
-                              isFavorite ? Icons.star : Icons.star_border,
-                              color: isFavorite ? Colors.yellow : null,
-                            ),
-                            onPressed: () => _toggleFavorite(item),
-                          ),
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/restaurantInfo',
-                              arguments: item.id, // Pass the ID
+                            return Card(
+                              color: Colors.blue[50],
+                              margin: EdgeInsets.symmetric(vertical: 8),
+                              child: ListTile(
+                                leading: Image.network(
+                                  item.photoUrl,
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                                title: Text(item.name),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("Address: ${item.address}"),
+                                    Text("Description: ${item.description}"),
+                                    Text(
+                                        "Business Hours: ${item.businessHours}"),
+                                    Text(
+                                        "Menu: ${item.menuItems.map((menuItem) => menuItem['menuName']).join(', ')}"),
+                                  ],
+                                ),
+                                trailing: IconButton(
+                                  icon: Icon(
+                                    isFavorite ? Icons.star : Icons.star_border,
+                                    color: isFavorite ? Colors.yellow : null,
+                                  ),
+                                  onPressed: () => _toggleFavorite(item),
+                                ),
+                                onTap: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/restaurantInfo',
+                                    arguments: item.id, // Pass the ID
+                                  );
+                                },
+                              ),
                             );
                           },
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

@@ -15,78 +15,107 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
   List<Map<String, dynamic>> menuItems = [];
   String? restaurantId;
   String? reservationId;
+  String? nickname;
+  bool hasExistingReservation = false;
 
   @override
   void initState() {
     super.initState();
+    _checkExistingReservations();
     _fetchLatestReservation();
+  }
+
+  Future<void> _checkExistingReservations() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final today = DateTime.now();
+        final startOfDay = DateTime(today.year, today.month, today.day);
+        final reservationQuery = await FirebaseFirestore.instance
+            .collection('reservations')
+            .where('nickname', isEqualTo: user.displayName)
+            .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+            .where('status', isEqualTo: 'confirmed')
+            .get();
+
+        if (reservationQuery.docs.isNotEmpty) {
+          setState(() {
+            hasExistingReservation = true;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error checking existing reservations: $e');
+    }
   }
 
   Future<void> _fetchLatestReservation() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Fetch the most recent reservation for the current user
-        final reservationQuery = await FirebaseFirestore.instance
-            .collection('reservations')
-            .where('nickname', isEqualTo: user.displayName)
-            .orderBy('timestamp', descending: true)
-            .limit(1)
-            .get();
+        if (user.isAnonymous) {
+          // 익명 사용자 처리
+          final nonMemberQuery = await FirebaseFirestore.instance
+              .collection('nonmembers')
+              .where('uid', isEqualTo: user.uid)
+              .limit(1)
+              .get();
 
-        if (reservationQuery.docs.isNotEmpty) {
-          final reservationDoc = reservationQuery.docs.first;
-          setState(() {
-            restaurantId = reservationDoc['restaurantId'];
-            reservationId = reservationDoc.id;
-          });
-          // Fetch restaurant details
-          _fetchRestaurantDetails();
-          // Fetch menu items
-          _fetchMenuItems();
-        } else {
-          // Check if the user is anonymous and search in nonmember DB
-          if (user.isAnonymous) {
-            final nonMemberQuery = await FirebaseFirestore.instance
-                .collection('nonmembers')
-                .where('uid', isEqualTo: user.uid)
+          if (nonMemberQuery.docs.isNotEmpty) {
+            final nonMemberDoc = nonMemberQuery.docs.first;
+            nickname = nonMemberDoc['nickname'];
+
+            final reservationQuery = await FirebaseFirestore.instance
+                .collection('reservations')
+                .where('nickname', isEqualTo: nickname)
+                .orderBy('timestamp', descending: true)
                 .limit(1)
                 .get();
 
-            if (nonMemberQuery.docs.isNotEmpty) {
-              final nonMemberDoc = nonMemberQuery.docs.first;
+            if (reservationQuery.docs.isNotEmpty) {
+              final reservationDoc = reservationQuery.docs.first;
               setState(() {
-                restaurantId = nonMemberDoc['restaurantId'];
-                reservationId = nonMemberDoc['reservationId'];
+                restaurantId = reservationDoc['restaurantId'];
+                reservationId = reservationDoc.id;
               });
               // Fetch restaurant details
               _fetchRestaurantDetails();
               // Fetch menu items
               _fetchMenuItems();
             } else {
-              print('No recent reservation found for this user.');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('No recent reservation found.')),
-              );
+              _showNoReservationFound();
             }
           } else {
-            print('No recent reservation found for this user.');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('No recent reservation found.')),
-            );
+            _showNoReservationFound();
+          }
+        } else {
+          // 일반 사용자 처리
+          final reservationQuery = await FirebaseFirestore.instance
+              .collection('reservations')
+              .where('nickname', isEqualTo: user.displayName)
+              .orderBy('timestamp', descending: true)
+              .limit(1)
+              .get();
+
+          if (reservationQuery.docs.isNotEmpty) {
+            final reservationDoc = reservationQuery.docs.first;
+            setState(() {
+              restaurantId = reservationDoc['restaurantId'];
+              reservationId = reservationDoc.id;
+            });
+            // Fetch restaurant details
+            _fetchRestaurantDetails();
+            // Fetch menu items
+            _fetchMenuItems();
+          } else {
+            _showNoReservationFound();
           }
         }
       } else {
-        print('User is not logged in.');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('User is not logged in.')),
-        );
+        _showUserNotLoggedIn();
       }
     } catch (e) {
-      print('Error fetching reservation info: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching reservation info: $e')),
-      );
+      _showErrorFetchingReservationInfo(e);
     }
   }
 
@@ -102,16 +131,10 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
             restaurantData = doc.data() as Map<String, dynamic>?;
           });
         } else {
-          print('Restaurant not found');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Restaurant not found')),
-          );
+          _showRestaurantNotFound();
         }
       } catch (e) {
-        print('Error fetching restaurant details: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching restaurant details: $e')),
-        );
+        _showErrorFetchingRestaurantDetails(e);
       }
     }
   }
@@ -131,35 +154,105 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
               .toList();
         });
       } catch (e) {
-        print('Error fetching menu items: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching menu items: $e')),
-        );
+        _showErrorFetchingMenuItems(e);
       }
     }
   }
 
   Future<void> _confirmReservation() async {
-    if (reservationId != null) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('reservations')
-            .doc(reservationId)
-            .update({'status': 'confirmed'});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Reservation confirmed.')),
-        );
-      } catch (e) {
-        print('Error confirming reservation: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error confirming reservation: $e')),
-        );
-      }
-    } else {
+    if (hasExistingReservation) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No reservation found to confirm.')),
+        SnackBar(content: Text('이미 오늘 예약된 내역이 있습니다. 새로운 예약을 할 수 없습니다.')),
       );
+      return;
     }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final cartQuery = await FirebaseFirestore.instance
+          .collection('cart')
+          .where('nickname', isEqualTo: user.displayName)
+          .get();
+
+      if (cartQuery.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('포장은 메뉴 주문을 필수로 해야 합니다')),
+        );
+        return;
+      }
+
+      if (reservationId != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('reservations')
+              .doc(reservationId)
+              .update({'status': 'confirmed'});
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Reservation confirmed.')),
+          );
+          Navigator.pushNamed(context, '/waitingNumber');
+        } catch (e) {
+          _showErrorConfirmingReservation(e);
+        }
+      } else {
+        _showNoReservationFoundToConfirm();
+      }
+    }
+  }
+
+  void _showNoReservationFound() {
+    print('No recent reservation found for this user.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('No recent reservation found.')),
+    );
+  }
+
+  void _showUserNotLoggedIn() {
+    print('User is not logged in.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('User is not logged in.')),
+    );
+  }
+
+  void _showErrorFetchingReservationInfo(e) {
+    print('Error fetching reservation info: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error fetching reservation info: $e')),
+    );
+  }
+
+  void _showRestaurantNotFound() {
+    print('Restaurant not found');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Restaurant not found')),
+    );
+  }
+
+  void _showErrorFetchingRestaurantDetails(e) {
+    print('Error fetching restaurant details: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error fetching restaurant details: $e')),
+    );
+  }
+
+  void _showErrorFetchingMenuItems(e) {
+    print('Error fetching menu items: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error fetching menu items: $e')),
+    );
+  }
+
+  void _showErrorConfirmingReservation(e) {
+    print('Error confirming reservation: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error confirming reservation: $e')),
+    );
+  }
+
+  void _showNoReservationFoundToConfirm() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('No reservation found to confirm.')),
+    );
   }
 
   @override
@@ -298,7 +391,6 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
                 ElevatedButton(
                   onPressed: () {
                     _confirmReservation();
-                    Navigator.pushNamed(context, '/waitingNumber');
                   },
                   child: Text('예약하기'),
                   style: ButtonStyle(

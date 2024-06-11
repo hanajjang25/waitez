@@ -183,7 +183,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
               Navigator.pop(context);
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('음식점을 찾을 수 없습니다.')),
+                SnackBar(content: Text('음식점을 먼저 등록해주세요.')),
               );
             }
           } else {
@@ -401,8 +401,12 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                     if (value == null || value.isEmpty) {
                       return '가격을 입력해주세요';
                     }
-                    if (int.tryParse(value) == null) {
+                    final intPrice = int.tryParse(value);
+                    if (intPrice == null) {
                       return '유효한 숫자를 입력해주세요';
+                    }
+                    if (intPrice > 1000000) {
+                      return '가격은 백만원 이하이어야 합니다';
                     }
                     return null;
                   },
@@ -457,6 +461,9 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                     }
                     if (!_isValidOrigin(value)) {
                       return '원산지는 한국어 및 특수문자(: ,)만 입력해주세요';
+                    }
+                    if (value.length > 100) {
+                      return '100글자 이하로 입력해주세요';
                     }
                     return null;
                   },

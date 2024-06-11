@@ -25,6 +25,8 @@ class _RegRestaurantState extends State<regRestaurant> {
   String _nickname = '';
   bool _isOpen = false;
   File? _imageFile;
+  String _averageWaitTime = '';
+  String? _userRegistrationNumber;
 
   final CollectionReference _collectionRef =
       FirebaseFirestore.instance.collection('restaurants');
@@ -32,10 +34,10 @@ class _RegRestaurantState extends State<regRestaurant> {
   @override
   void initState() {
     super.initState();
-    _loadNickname();
+    _loadUserData();
   }
 
-  Future<void> _loadNickname() async {
+  Future<void> _loadUserData() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
@@ -44,6 +46,8 @@ class _RegRestaurantState extends State<regRestaurant> {
           .get();
       setState(() {
         _nickname = userDoc['nickname'];
+        _location = userDoc['location'];
+        _userRegistrationNumber = userDoc['resNum'];
       });
     }
   }
@@ -136,6 +140,13 @@ class _RegRestaurantState extends State<regRestaurant> {
         return;
       }
 
+      if (_userRegistrationNumber != _registrationNumber) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('등록번호가 일치하지 않습니다.')),
+        );
+        return;
+      }
+
       try {
         // 중복된 음식점 이름이 있는지 확인
         final QuerySnapshot nameSnapshot = await _collectionRef
@@ -174,6 +185,8 @@ class _RegRestaurantState extends State<regRestaurant> {
           'isOpen': _isOpen,
           'nickname': _nickname,
           'isDeleted': false,
+          'averageWaitTime':
+              int.parse(_averageWaitTime), // 저장된 대기시간을 int로 변환하여 저장
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -385,7 +398,7 @@ class _RegRestaurantState extends State<regRestaurant> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Text(
-                      '선택된 위치: $_location',
+                      '위치: $_location',
                       style: TextStyle(
                         color: Color(0xFF1C1C21),
                         fontSize: 16,
@@ -459,7 +472,7 @@ class _RegRestaurantState extends State<regRestaurant> {
                 ),
                 SizedBox(height: 20),
                 Text(
-                  '1팀당 평균 대기시간',
+                  '1팀당 평균 대기시간 (분)',
                   style: TextStyle(
                     color: Color(0xFF1C1C21),
                     fontSize: 18,
@@ -467,11 +480,20 @@ class _RegRestaurantState extends State<regRestaurant> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 0, 350, 0),
-                  child: TextFormField(
-                    decoration: InputDecoration(),
-                  ),
+                TextFormField(
+                  decoration: InputDecoration(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '평균 대기시간을 입력해주세요';
+                    }
+                    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                      return '숫자로만 입력해주세요';
+                    }
+                    return null;
+                  },
+                  onSaved: (value) {
+                    _averageWaitTime = value!;
+                  },
                 ),
                 SizedBox(height: 20),
                 Text(

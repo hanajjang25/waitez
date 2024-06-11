@@ -1,4 +1,3 @@
-// MenuRegOne.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -259,8 +258,12 @@ class _MenuRegOneState extends State<MenuRegOne> {
                     if (value == null || value.isEmpty) {
                       return '가격을 입력해주세요';
                     }
-                    if (int.tryParse(value) == null) {
+                    final price = int.tryParse(value);
+                    if (price == null) {
                       return '유효한 숫자를 입력해주세요';
+                    }
+                    if (price > 1000000) {
+                      return '가격은 백만원 이하여야 합니다';
                     }
                     return null;
                   },
@@ -312,6 +315,9 @@ class _MenuRegOneState extends State<MenuRegOne> {
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return '원산지를 입력해주세요';
+                    }
+                    if (value.length > 100) {
+                      return '100글자 이하로 입력해주세요';
                     }
                     if (!_isValidOrigin(value)) {
                       return '원산지는 한국어랑 특수문자(: ,)으로만 입력해주세요';

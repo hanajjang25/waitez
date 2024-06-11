@@ -1,4 +1,3 @@
-// MenuRegList.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -161,7 +160,7 @@ class _MenuRegListState extends State<MenuRegList> {
                 child: snapshot.connectionState == ConnectionState.waiting
                     ? Center(child: CircularProgressIndicator())
                     : _filteredMenuItems.isEmpty
-                        ? Center(child: Text('등록된 메뉴가 없습니다.'))
+                        ? Center(child: Text('해당하는 메뉴가 존재하지 않습니다.'))
                         : ListView.builder(
                             itemCount: _filteredMenuItems.length,
                             itemBuilder: (context, index) {

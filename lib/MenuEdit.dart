@@ -136,26 +136,30 @@ class _MenuEditState extends State<MenuEdit> {
                   ),
                 ),
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: _filteredMenuItems.length,
-                    itemBuilder: (context, index) {
-                      final menuItem = _filteredMenuItems[index];
-                      return ListTile(
-                        leading: Icon(Icons.fastfood),
-                        title: Text(menuItem.name),
-                        subtitle: Text('가격: ${menuItem.price}원'),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => detail.MenuEditDetail(
-                                  menuItemId: menuItem.id),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                  child: _filteredMenuItems.isNotEmpty
+                      ? ListView.builder(
+                          itemCount: _filteredMenuItems.length,
+                          itemBuilder: (context, index) {
+                            final menuItem = _filteredMenuItems[index];
+                            return ListTile(
+                              leading: Icon(Icons.fastfood),
+                              title: Text(menuItem.name),
+                              subtitle: Text('가격: ${menuItem.price}원'),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => detail.MenuEditDetail(
+                                        menuItemId: menuItem.id),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        )
+                      : Center(
+                          child: Text('해당하는 메뉴가 존재하지 않습니다.'),
+                        ),
                 ),
               ],
             );

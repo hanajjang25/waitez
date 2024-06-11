@@ -331,7 +331,7 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                           height: 201,
                           decoration: BoxDecoration(
                             image: DecorationImage(
-                                image: AssetImage("assets/images/malatang.png"),
+                                image: NetworkImage(_photoUrl),
                                 fit: BoxFit.fill),
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -363,14 +363,19 @@ class _EditRegRestaurantState extends State<editregRestaurant> {
                                 Radius.circular(10),
                               )),
                               side: BorderSide(color: Colors.black)),
-                          onPressed: () {
-                            Navigator.push(
+                          onPressed: () async {
+                            final location = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
                                     MapPage(previousPage: 'RestaurantEdit'),
                               ),
                             );
+                            if (location != null) {
+                              setState(() {
+                                _location = location;
+                              });
+                            }
                           },
                           child: Text(
                             '위치 찾기',

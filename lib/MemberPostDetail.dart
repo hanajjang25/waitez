@@ -81,6 +81,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
     });
   }
 
+  bool _isValidKorean(String value) {
+    final koreanRegex = RegExp(r'^[가-힣\s]+$');
+    return koreanRegex.hasMatch(value);
+  }
+
   void addComment() async {
     if (_currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,6 +98,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
       if (_commentController.text.length > 100) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('댓글은 최대 100자까지 작성 가능합니다')),
+        );
+        return;
+      }
+
+      if (!_isValidKorean(_commentController.text)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('댓글은 한글로만 작성 가능합니다')),
         );
         return;
       }
@@ -185,6 +197,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
       return;
     }
 
+    if (!_isValidKorean(updatedContent)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('댓글은 한글로만 작성 가능합니다')),
+      );
+      return;
+    }
+
     final comment = comments[index];
 
     QuerySnapshot snapshot = await FirebaseFirestore.instance
@@ -213,6 +232,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   void savePost() async {
+    if (_contentController.text.length > 500) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('내용은 500자까지 작성 가능합니다')),
+      );
+      return;
+    }
+
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('community')
@@ -286,6 +312,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool isAuthor = _currentUser?.email == widget.post['author'];
+
     return Scaffold(
       appBar: AppBar(),
       body: Padding(
@@ -336,7 +364,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
             _isEditingPost
                 ? TextField(
                     controller: _contentController,
-                    decoration: InputDecoration(labelText: 'Content'),
+                    decoration: InputDecoration(
+                      labelText: 'Content',
+                      errorText: _contentController.text.length > 500
+                          ? '내용은 500자까지 작성 가능합니다'
+                          : null,
+                    ),
                     maxLines: 5,
                   )
                 : Text(
@@ -346,44 +379,45 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     ),
                   ),
             SizedBox(height: 20),
-            if (_isEditingPost)
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: savePost,
-                    child: Text('Save'),
-                  ),
-                  SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: togglePostEditMode,
-                    child: Text('Cancel'),
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(Colors.grey),
+            if (isAuthor)
+              _isEditingPost
+                  ? Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: savePost,
+                          child: Text('Save'),
+                        ),
+                        SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: togglePostEditMode,
+                          child: Text('Cancel'),
+                          style: ButtonStyle(
+                            backgroundColor:
+                                MaterialStateProperty.all(Colors.grey),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: togglePostEditMode,
+                          child: Text('Edit'),
+                          style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10))),
+                        ),
+                        SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: confirmDeletePost,
+                          child: Text('Delete'),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.lightBlueAccent,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10))),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              )
-            else
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: togglePostEditMode,
-                    child: Text('Edit'),
-                    style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
-                  ),
-                  SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: confirmDeletePost,
-                    child: Text('Delete'),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.lightBlueAccent,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
-                  ),
-                ],
-              ),
             SizedBox(height: 20),
             Divider(thickness: 1, color: Colors.black),
             SizedBox(height: 10),
@@ -400,6 +434,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
                 itemCount: comments.length,
                 itemBuilder: (context, index) {
                   final comment = comments[index];
+                  bool isCommentAuthor =
+                      comment['author'] == (_currentNickname ?? '');
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
                     child: Column(
@@ -439,7 +476,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                   errorText:
                                       _editControllers[index].text.length > 100
                                           ? '댓글은 최대 100자까지 작성 가능합니다'
-                                          : null,
+                                          : !_isValidKorean(
+                                                  _editControllers[index].text)
+                                              ? '댓글은 한글로만 작성 가능합니다'
+                                              : null,
                                 ),
                               )
                             : Text(
@@ -450,14 +490,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               ),
                         Row(
                           children: [
-                            TextButton(
-                              onPressed: () => toggleEditMode(index),
-                              child: Text(
-                                _isEditing[index] ? 'Cancel' : 'Edit',
-                                style: TextStyle(color: Colors.grey),
+                            if (isCommentAuthor)
+                              TextButton(
+                                onPressed: () => toggleEditMode(index),
+                                child: Text(
+                                  _isEditing[index] ? 'Cancel' : 'Edit',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
                               ),
-                            ),
-                            if (_isEditing[index])
+                            if (_isEditing[index] && isCommentAuthor)
                               TextButton(
                                 onPressed: () => saveComment(index),
                                 child: Text(
@@ -465,13 +506,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                   style: TextStyle(color: Colors.grey),
                                 ),
                               ),
-                            TextButton(
-                              onPressed: () => confirmDeleteComment(index),
-                              child: Text(
-                                'Delete',
-                                style: TextStyle(color: Colors.grey),
+                            if (isCommentAuthor)
+                              TextButton(
+                                onPressed: () => confirmDeleteComment(index),
+                                child: Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
                               ),
-                            ),
                           ],
                         ),
                         Divider(thickness: 1, color: Colors.grey),
@@ -496,7 +538,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         ),
                         errorText: _commentController.text.length > 100
                             ? '댓글은 최대 100자까지 작성 가능합니다'
-                            : null,
+                            : !_isValidKorean(_commentController.text)
+                                ? '댓글은 한글로만 작성 가능합니다'
+                                : null,
                       ),
                       enabled: _currentUser != null, // 로그인된 사용자만 입력 가능
                     ),

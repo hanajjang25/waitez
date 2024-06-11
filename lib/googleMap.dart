@@ -348,56 +348,23 @@ class AddressPage extends StatelessWidget {
       return;
     }
 
-    if (user.isAnonymous) {
-      // 익명 사용자일 경우 nonmembers 테이블 업데이트
-      await FirebaseFirestore.instance
-          .collection('nonmembers')
-          .doc(user.uid)
-          .set({'location': address}, SetOptions(merge: true)).catchError(
-              (error) {
-        print('Failed to update nonmember location: $error');
-      });
-    } else {
-      String email = user.email!;
-
-      // 이메일을 통해 Firestore에서 사용자 문서 찾기
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        // 문서가 존재하면 업데이트
-        DocumentReference userDoc = querySnapshot.docs[0].reference;
-        await userDoc.update({'location': address}).catchError((error) {
-          print('Failed to update user location: $error');
-        });
-      } else {
-        print('User document not found');
-      }
-    }
-  }
-
-  Future<bool> _isUserRestaurantOwner() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-
     String email = user.email!;
-    QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+
+    // 이메일을 통해 Firestore에서 사용자 문서 찾기
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
         .collection('users')
         .where('email', isEqualTo: email)
         .get();
 
-    if (userSnapshot.docs.isNotEmpty) {
-      DocumentSnapshot userDoc = userSnapshot.docs.first;
-      var userData = userDoc.data()
-          as Map<String, dynamic>?; // Check if data is null and cast it
-      if (userData != null && userData.containsKey('registrationNumber')) {
-        return true;
-      }
+    if (querySnapshot.docs.isNotEmpty) {
+      // 문서가 존재하면 업데이트
+      DocumentReference userDoc = querySnapshot.docs[0].reference;
+      await userDoc.update({'location': address}).catchError((error) {
+        print('Failed to update user location: $error');
+      });
+    } else {
+      print('User document not found');
     }
-
-    return false;
   }
 
   @override
@@ -435,16 +402,13 @@ class AddressPage extends StatelessWidget {
                 // 사용자 위치를 Firestore에 업데이트
                 await _updateUserLocation(fullAddress);
 
-                bool isRestaurantOwner = await _isUserRestaurantOwner();
-
                 // Navigate back to the previous page
-                if (isRestaurantOwner) {
-                  Navigator.pushNamedAndRemoveUntil(
-                      context, '/regRestaurant', (route) => false,
-                      arguments: fullAddress);
-                } else if (previousPage == 'UserSearch') {
+                if (previousPage == 'UserSearch') {
                   Navigator.pushNamedAndRemoveUntil(
                       context, '/search', (route) => false);
+                } else if (previousPage == 'RestaurantReg') {
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/regRestaurant', (route) => false);
                 } else if (previousPage == 'RestaurantEdit') {
                   Navigator.pushNamedAndRemoveUntil(
                       context, '/editRestaurant', (route) => false);
