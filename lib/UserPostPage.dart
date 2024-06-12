@@ -1,30 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'MemberCommunityWrite.dart';
-import 'MemberPostDetail.dart'; // Import the PostDetailPage
-import 'UserPostPage.dart'; // Import the new UserPostsPage
-import 'UserBottom.dart';
+import 'MemberPostDetail.dart';
 
-class CommunityMainPage extends StatefulWidget {
+class UserPostsPage extends StatefulWidget {
   @override
-  _CommunityMainPageState createState() => _CommunityMainPageState();
+  _UserPostsPageState createState() => _UserPostsPageState();
 }
 
-class _CommunityMainPageState extends State<CommunityMainPage> {
+class _UserPostsPageState extends State<UserPostsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  bool _showUserPosts = false;
-  String _searchQuery = '';
 
-  Future<List<Map<String, String>>> fetchPosts() async {
+  Future<List<Map<String, String>>> fetchUserPosts() async {
+    String? userEmail = _auth.currentUser?.email;
     QuerySnapshot snapshot;
 
-    if (_searchQuery.isNotEmpty) {
+    if (userEmail != null) {
       snapshot = await _firestore
           .collection('community')
-          .where('title', isGreaterThanOrEqualTo: _searchQuery)
-          .where('title', isLessThanOrEqualTo: _searchQuery + '\uf8ff')
+          .where('author', isEqualTo: userEmail)
           .get();
     } else {
       snapshot = await _firestore.collection('community').get();
@@ -41,17 +36,6 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
     }).toList();
   }
 
-  void navigateToWritePost() async {
-    final result = await Navigator.pushNamed(context, '/communityWrite');
-
-    if (result != null && result is Map<String, String>) {
-      setState(() {
-        _searchQuery = ''; // 작성 후 검색어 초기화
-        fetchPosts(); // 새 글 작성 후 데이터 다시 가져오기
-      });
-    }
-  }
-
   void navigateToPostDetail(Map<String, String> post) {
     Navigator.push(
       context,
@@ -60,24 +44,15 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           post: post,
           onPostDeleted: () {
             setState(() {
-              fetchPosts(); // 글 삭제 후 데이터 다시 가져오기
+              fetchUserPosts(); // 글 삭제 후 데이터 다시 가져오기
             });
           },
           onPostUpdated: (updatedPost) {
             setState(() {
-              fetchPosts(); // 글 수정 후 데이터 다시 가져오기
+              fetchUserPosts(); // 글 수정 후 데이터 다시 가져오기
             });
           },
         ),
-      ),
-    );
-  }
-
-  void navigateToUserPosts() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => UserPostsPage(), // Navigate to UserPostsPage
       ),
     );
   }
@@ -99,15 +74,6 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
             Navigator.of(context).pop();
           },
         ),
-        actions: [
-          IconButton(
-            icon: Icon(_showUserPosts ? Icons.list : Icons.person,
-                color: Colors.black),
-            onPressed: () {
-              navigateToUserPosts(); // Navigate to UserPostsPage
-            },
-          ),
-        ],
       ),
       body: Padding(
         padding: EdgeInsets.all(16),
@@ -117,7 +83,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
             Container(
               alignment: Alignment.centerLeft,
               child: Text(
-                '커뮤니티',
+                '내가 작성한 글',
                 style: TextStyle(
                   color: Color(0xFF1C1C21),
                   fontSize: 18,
@@ -129,26 +95,12 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
               ),
             ),
             SizedBox(height: 10),
-            TextField(
-              decoration: InputDecoration(
-                labelText: '검색',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                  fetchPosts();
-                });
-              },
-            ),
-            SizedBox(height: 30),
             Container(
                 width: 500,
                 child: Divider(color: Colors.black, thickness: 1.0)),
             Expanded(
               child: FutureBuilder<List<Map<String, String>>>(
-                future: fetchPosts(),
+                future: fetchUserPosts(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
@@ -182,15 +134,6 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           ],
         ),
       ),
-      floatingActionButton: Container(
-        alignment: Alignment.bottomCenter,
-        child: FloatingActionButton.extended(
-          onPressed: navigateToWritePost,
-          icon: Icon(Icons.add), // 아이콘 추가
-          label: Text("글쓰기"),
-        ),
-      ),
-      bottomNavigationBar: menuButtom(),
     );
   }
 }

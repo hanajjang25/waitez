@@ -220,7 +220,7 @@ class _staffProfileState extends State<staffProfile> {
           ),
         ),
       ),
-      bottomNavigationBar: staffButtom(),
+      bottomNavigationBar: staffBottom(),
     );
   }
 }

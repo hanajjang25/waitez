@@ -35,6 +35,7 @@ import 'MemberCommunityWrite.dart';
 import 'communityMyPage.dart';
 import 'notification.dart';
 import 'sendingMessage.dart';
+import 'RestaurantEditBefore.dart';
 import 'package:notification_permissions/notification_permissions.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
@@ -157,6 +158,19 @@ class _MyAppState extends State<MyApp> {
               );
             }
             return _errorRoute();
+          case '/history':
+            if (settings.arguments is Map<String, dynamic>) {
+              final args = settings.arguments as Map<String, dynamic>;
+              return MaterialPageRoute(
+                builder: (context) => History(
+                  restaurantName: args['restaurantName'],
+                  date: args['date'],
+                  imageAsset: args['imageAsset'],
+                  menuItems: args['menuItems'],
+                ),
+              );
+            }
+            return _errorRoute();
           // Add other routes that require arguments here if necessary
           default:
             return null;
@@ -192,17 +206,7 @@ class _MyAppState extends State<MyApp> {
         '/nonMemberHome': (context) => nonMemberHome(),
         '/nonMemberInfo': (context) => nonMemberInfo(),
         '/historyList': (context) => historyList(),
-
-        '/history': (context) => History(
-              restaurantName: '이력조회 샘플 레스토랑',
-              date: '2024-05-30 12:00',
-              imageAsset: 'https://via.placeholder.com/150',
-              menuItems: [
-                {'name': 'Item 1', 'price': 10000, 'quantity': 1},
-                {'name': 'Item 2', 'price': 20000, 'quantity': 2},
-                {'name': 'Item 3', 'price': 15000, 'quantity': 1},
-              ],
-            ),
+        '/restaurantEditBefore': (context) => RestaurantEditBefore(),
         // '/sendSMS': (context) => messagesend(),
       },
     );

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/widgets.dart';
 import 'package:waitez/reservationBottom.dart';
 import 'UserReservation.dart'; // UserReservation 클래스를 임포트
 import 'dart:async'; // Timer를 사용하기 위해 임포트
 import 'reservationBottom.dart';
+import 'package:intl/intl.dart';
 
 class RestaurantInfo extends StatefulWidget {
   final String restaurantId;
@@ -27,19 +29,12 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
     super.initState();
     _fetchRestaurantDetails();
     _fetchMenuItems();
-    _startTimer();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(Duration(minutes: 1), (timer) {
-      _checkIsOpen();
-    });
   }
 
   Future<void> _fetchRestaurantDetails() async {
@@ -51,7 +46,6 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
       if (doc.exists) {
         setState(() {
           restaurantData = doc.data() as Map<String, dynamic>?;
-          isOpen = restaurantData?['isOpen'] ?? false;
         });
       } else {
         print('Restaurant not found');
@@ -84,25 +78,6 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
       print('Error fetching menu items: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error fetching menu items: $e')),
-      );
-    }
-  }
-
-  Future<void> _checkIsOpen() async {
-    try {
-      DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection('restaurants')
-          .doc(widget.restaurantId)
-          .get();
-      if (doc.exists) {
-        setState(() {
-          isOpen = (doc.data() as Map<String, dynamic>)['isOpen'] ?? false;
-        });
-      }
-    } catch (e) {
-      print('Error checking open status: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error checking open status: $e')),
       );
     }
   }
@@ -247,10 +222,14 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                       letterSpacing: -0.27,
                     ),
                   ),
-                  SizedBox(width: 20),
-                  Text(
-                    restaurantData!['location'] ?? 'Unknown',
-                    style: TextStyle(fontSize: 16),
+                  SizedBox(width: 50),
+                  Expanded(
+                    child: Text(
+                      restaurantData!['location'] ?? 'Unknown',
+                      style: TextStyle(fontSize: 15),
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
+                    ),
                   ),
                 ],
               ),
@@ -274,7 +253,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                   SizedBox(width: 20),
                   Text(
                     restaurantData!['businessHours'] ?? 'Unknown',
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(fontSize: 15),
                   ),
                 ],
               ),
@@ -302,13 +281,11 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: isOpen
-                      ? _saveReservation
-                      : null, // 예약하기 버튼 클릭 시 예약 정보 저장 및 화면 전환
+                  onPressed: _saveReservation, // 예약하기 버튼 클릭 시 예약 정보 저장 및 화면 전환
                   child: Text('예약하기'),
                   style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all(
-                        isOpen ? Color(0xFF1A94FF) : Colors.grey),
+                    backgroundColor:
+                        MaterialStateProperty.all(Color(0xFF1A94FF)),
                     foregroundColor: MaterialStateProperty.all(Colors.white),
                     minimumSize: MaterialStateProperty.all(Size(200, 50)),
                     padding: MaterialStateProperty.all(

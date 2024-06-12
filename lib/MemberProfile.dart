@@ -123,7 +123,7 @@ class _ProfileState extends State<Profile> {
   String formatDate(Timestamp timestamp) {
     var date = timestamp.toDate();
     var localDate = date.toLocal(); // 로컬 시간대로 변환
-    var formatter = DateFormat('yyyy-MM-dd HH:mm');
+    var formatter = DateFormat('yyyy-MM-dd');
     return formatter.format(localDate);
   }
 
@@ -237,7 +237,7 @@ class _ProfileState extends State<Profile> {
                     '더보기 > ',
                     style: TextStyle(
                       color: Color(0xFF1C1C21),
-                      fontSize: 15,
+                      fontSize: 17,
                       fontFamily: 'Epilogue',
                       fontWeight: FontWeight.w700,
                       decoration: TextDecoration.underline,

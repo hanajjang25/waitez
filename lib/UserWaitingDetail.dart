@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geocoding/geocoding.dart';
 import 'UserBottom.dart';
 import 'UserCart.dart'; // Import the Cart page
 
@@ -26,6 +27,9 @@ class _waitingDetailState extends State<waitingDetail> {
   String? restaurantAddress;
   List<Map<String, dynamic>> orderItems = [];
   int totalAmount = 0;
+  LatLng? restaurantLocation; // Add a variable to store the restaurant location
+  bool isTakeout = false; // Add a flag for takeout
+  int averageWaitTime = 0; // Add a variable for average wait time
 
   static const CameraPosition initialCameraPosition = CameraPosition(
     target: LatLng(37.7749, -122.4194),
@@ -35,13 +39,13 @@ class _waitingDetailState extends State<waitingDetail> {
   @override
   void initState() {
     super.initState();
-    _fetchRestaurantAddress();
+    _fetchRestaurantDetails();
     _fetchOrderDetails();
   }
 
-  Future<void> _fetchRestaurantAddress() async {
+  Future<void> _fetchRestaurantDetails() async {
     try {
-      // Fetch restaurant address from Firestore
+      // Fetch restaurant address and average wait time from Firestore
       var restaurantSnapshot = await FirebaseFirestore.instance
           .collection('restaurants')
           .where('restaurantName', isEqualTo: widget.restaurantName)
@@ -49,16 +53,28 @@ class _waitingDetailState extends State<waitingDetail> {
           .get();
 
       if (restaurantSnapshot.docs.isNotEmpty) {
+        var restaurantData = restaurantSnapshot.docs.first.data();
         setState(() {
-          restaurantAddress = restaurantSnapshot.docs.first['location'];
+          restaurantAddress = restaurantData['location'];
+          averageWaitTime = restaurantData['averageWaitTime'];
         });
+
+        // Geocode the address to get the coordinates
+        List<Location> locations =
+            await locationFromAddress(restaurantAddress!);
+        if (locations.isNotEmpty) {
+          setState(() {
+            restaurantLocation =
+                LatLng(locations.first.latitude, locations.first.longitude);
+          });
+        }
       } else {
         setState(() {
           restaurantAddress = '주소를 찾을 수 없습니다.';
         });
       }
     } catch (e) {
-      print('Error fetching restaurant address: $e');
+      print('Error fetching restaurant details: $e');
       setState(() {
         restaurantAddress = '주소를 찾을 수 없습니다.';
       });
@@ -67,33 +83,46 @@ class _waitingDetailState extends State<waitingDetail> {
 
   Future<void> _fetchOrderDetails() async {
     try {
-      // Fetch order details from Firestore
-      var orderSnapshot = await FirebaseFirestore.instance
-          .collection('orders')
-          .where('restaurantId', isEqualTo: widget.reservationId)
-          .where('reservationId', isEqualTo: widget.reservationId)
+      // Fetch restaurant ID by name
+      var restaurantQuery = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .where('restaurantName', isEqualTo: widget.restaurantName)
+          .limit(1)
           .get();
 
-      if (orderSnapshot.docs.isNotEmpty) {
-        List<Map<String, dynamic>> items = [];
-        int total = 0;
+      if (restaurantQuery.docs.isNotEmpty) {
+        var restaurantId = restaurantQuery.docs.first.id;
 
-        for (var doc in orderSnapshot.docs) {
-          var item = doc.data();
-          int price = item['price'] is int
-              ? item['price']
-              : (item['price'] as num).toInt();
-          int quantity = item['quantity'] is int
-              ? item['quantity']
-              : (item['quantity'] as num).toInt();
-          items.add(item);
-          total += price * quantity;
+        // Fetch order details from Firestore
+        var orderSnapshot = await FirebaseFirestore.instance
+            .collection('orders')
+            .where('restaurantId', isEqualTo: restaurantId)
+            .where('reservationId', isEqualTo: widget.reservationId)
+            .get();
+
+        if (orderSnapshot.docs.isNotEmpty) {
+          List<Map<String, dynamic>> items = [];
+          int total = 0;
+
+          for (var doc in orderSnapshot.docs) {
+            var item = doc.data();
+            int price = item['price'] is int
+                ? item['price']
+                : (item['price'] as num).toInt();
+            int quantity = item['quantity'] is int
+                ? item['quantity']
+                : (item['quantity'] as num).toInt();
+            items.add(item);
+            total += price * quantity;
+          }
+
+          setState(() {
+            orderItems = items;
+            totalAmount = total;
+            isTakeout =
+                orderSnapshot.docs.first['type'] == 2; // Check if takeout
+          });
         }
-
-        setState(() {
-          orderItems = items;
-          totalAmount = total;
-        });
       }
     } catch (e) {
       print('Error fetching order details: $e');
@@ -184,7 +213,7 @@ class _waitingDetailState extends State<waitingDetail> {
             SizedBox(height: 20),
             Center(
               child: Text(
-                '(한 팀당 평균 대기 시간 : 20분)',
+                '(한 팀당 평균 대기 시간 : $averageWaitTime분)',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -237,15 +266,17 @@ class _waitingDetailState extends State<waitingDetail> {
                     foregroundColor: Colors.blue,
                     side: BorderSide(color: Colors.blue),
                   ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            Cart(), // Pass reservationId if needed
-                      ),
-                    );
-                  },
+                  onPressed: isTakeout
+                      ? null
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  Cart(), // Pass reservationId if needed
+                            ),
+                          );
+                        },
                 ),
                 SizedBox(width: 5),
                 ElevatedButton.icon(
@@ -364,11 +395,26 @@ class _waitingDetailState extends State<waitingDetail> {
                                   ),
                                 ],
                               ),
-                              SizedBox(height: 5),
-                              Text(
-                                restaurantAddress ?? '',
-                                style: TextStyle(fontSize: 15),
-                              ),
+                              SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      constraints: BoxConstraints(
+                                        maxWidth: 200.0, // 원하는 최대 너비 설정
+                                      ),
+                                      child: Wrap(
+                                        children: [
+                                          Text(
+                                            restaurantAddress ?? '',
+                                            style: TextStyle(fontSize: 15),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
                             ],
                           ),
                         ],
@@ -396,9 +442,22 @@ class _waitingDetailState extends State<waitingDetail> {
                         child: Container(
                           width: 400,
                           height: 300,
-                          child: GoogleMap(
-                            initialCameraPosition: initialCameraPosition,
-                          ),
+                          child: restaurantLocation != null
+                              ? GoogleMap(
+                                  initialCameraPosition: CameraPosition(
+                                    target: restaurantLocation!,
+                                    zoom: 14.0,
+                                  ),
+                                  markers: {
+                                    Marker(
+                                      markerId: MarkerId('restaurant'),
+                                      position: restaurantLocation!,
+                                    ),
+                                  },
+                                )
+                              : Center(
+                                  child: CircularProgressIndicator(),
+                                ),
                         ),
                       ),
                       SizedBox(height: 20),

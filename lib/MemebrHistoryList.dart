@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:waitez/UserBottom.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import 'UserBottom.dart';
+import 'Memberhistory.dart'; // History 페이지를 임포트
 
 class historyList extends StatefulWidget {
   @override
@@ -7,26 +11,106 @@ class historyList extends StatefulWidget {
 }
 
 class _historyListState extends State<historyList> {
-  final List<Map<String, dynamic>> reservations = [
-    {
-      'restaurantPhoto': 'assets/images/malatang.png',
-      'restaurantName': 'Restaurant 1',
-      'timestamp': DateTime.now(),
-      'menuItems': ['Item 1', 'Item 2']
-    },
-    {
-      'restaurantPhoto': 'assets/images/malatang.png',
-      'restaurantName': 'Restaurant 2',
-      'timestamp': DateTime.now(),
-      'menuItems': ['Item 3', 'Item 4']
-    },
-    // Add more reservations as needed
-  ];
-
+  List<Map<String, dynamic>> reservations = [];
   String _searchQuery = '';
+  String? nickname = null; // nullable로 변경
 
-  String formatDate(DateTime date) {
-    return "${date.year}-${date.month}-${date.day}";
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (userDoc.exists) {
+        setState(() {
+          nickname = userDoc['nickname'] ?? 'Unknown';
+        });
+        // nickname을 설정한 후에 reservations를 가져옴
+        if (nickname != null) {
+          await _fetchReservations(nickname!);
+        }
+      }
+    }
+  }
+
+  Future<void> _fetchReservations(String nickname) async {
+    final reservationQuery = await FirebaseFirestore.instance
+        .collection('reservations')
+        .where('nickname', isEqualTo: nickname)
+        .orderBy('timestamp', descending: true)
+        .get();
+
+    List<Map<String, dynamic>> fetchedReservations = [];
+
+    for (var doc in reservationQuery.docs) {
+      var reservation = doc.data();
+      reservation['id'] = doc.id; // 예약 ID를 포함
+      var restaurantId = reservation['restaurantId'];
+
+      var restaurantDoc = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(restaurantId)
+          .get();
+
+      if (restaurantDoc.exists) {
+        var restaurantData = restaurantDoc.data();
+        String restaurantName = restaurantData?['restaurantName'] ?? '';
+        String restaurantPhoto = restaurantData?['photoUrl'] ?? '';
+        if (restaurantName.isNotEmpty && restaurantPhoto.isNotEmpty) {
+          reservation['restaurantName'] = restaurantName;
+          reservation['restaurantPhoto'] = restaurantPhoto;
+          fetchedReservations.add(reservation);
+        }
+      }
+    }
+
+    setState(() {
+      reservations = fetchedReservations;
+    });
+  }
+
+  String formatDate(dynamic timestamp) {
+    if (timestamp is Timestamp) {
+      var date = timestamp.toDate();
+      var localDate = date.toLocal(); // 로컬 시간대로 변환
+      var formatter = DateFormat('yyyy-MM-dd'); // 날짜만 표시하도록 형식 지정
+      return formatter.format(localDate);
+    } else if (timestamp is DateTime) {
+      var localDate = timestamp.toLocal(); // 로컬 시간대로 변환
+      var formatter = DateFormat('yyyy-MM-dd'); // 날짜만 표시하도록 형식 지정
+      return formatter.format(localDate);
+    } else {
+      return 'Invalid date';
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchMenuItems(
+      String reservationId) async {
+    final cartQuery = await FirebaseFirestore.instance
+        .collection('cart')
+        .where('reservationId', isEqualTo: reservationId)
+        .get();
+
+    List<Map<String, dynamic>> menuItems = [];
+    for (var doc in cartQuery.docs) {
+      var item = doc.data();
+      var menuItem = item['menuItem'];
+      if (menuItem != null) {
+        menuItems.add({
+          'name': menuItem['menuName'] ?? 'Unknown',
+          'price': menuItem['price'] ?? 0,
+          'quantity': menuItem['quantity'] ?? 0,
+        });
+      }
+    }
+    return menuItems;
   }
 
   @override
@@ -39,22 +123,13 @@ class _historyListState extends State<historyList> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        title: Text('이력조회'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '이력조회',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
             TextField(
               decoration: InputDecoration(
                 labelText: '검색',
@@ -72,22 +147,23 @@ class _historyListState extends State<historyList> {
               child: ListView(
                 children: filteredReservations.map((reservation) {
                   return ReservationCard(
-                    imageAsset: reservation['restaurantPhoto'] ??
-                        'assets/images/malatang.png',
-                    restaurantName: reservation['restaurantName'] ?? 'Unknown',
+                    imageAsset: reservation['restaurantPhoto'] ?? '',
+                    restaurantName: reservation['restaurantName'] ?? '',
                     date: formatDate(reservation['timestamp']),
                     buttonText: '자세히 보기',
-                    onPressed: () {
+                    onPressed: () async {
+                      List<Map<String, dynamic>> menuItems =
+                          await _fetchMenuItems(reservation['id']);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => HistoryDetailPage(
+                          builder: (context) => History(
                             restaurantName:
                                 reservation['restaurantName'] ?? 'Unknown',
                             date: formatDate(reservation['timestamp']),
                             imageAsset: reservation['restaurantPhoto'] ??
                                 'assets/images/malatang.png',
-                            menuItems: reservation['menuItems'] ?? [],
+                            menuItems: menuItems,
                           ),
                         ),
                       );
@@ -123,63 +199,17 @@ class ReservationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: Image.asset(imageAsset),
+        leading: SizedBox(
+          width: 50, // 적절한 크기로 제한
+          child: imageAsset.startsWith('http')
+              ? Image.network(imageAsset, fit: BoxFit.cover)
+              : Image.asset(imageAsset, fit: BoxFit.cover),
+        ),
         title: Text(restaurantName),
         subtitle: Text(date),
         trailing: ElevatedButton(
           onPressed: onPressed,
           child: Text(buttonText),
-        ),
-      ),
-    );
-  }
-}
-
-class HistoryDetailPage extends StatelessWidget {
-  final String restaurantName;
-  final String date;
-  final String imageAsset;
-  final List<String> menuItems;
-
-  HistoryDetailPage({
-    required this.restaurantName,
-    required this.date,
-    required this.imageAsset,
-    required this.menuItems,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('History Detail'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              restaurantName,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(date),
-            SizedBox(height: 10),
-            Image.asset(imageAsset),
-            SizedBox(height: 10),
-            Text(
-              'Menu Items:',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            ...menuItems.map((item) => Text(item)).toList(),
-          ],
         ),
       ),
     );

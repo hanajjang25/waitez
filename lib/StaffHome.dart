@@ -29,7 +29,8 @@ class homeStaff extends StatefulWidget {
 }
 
 class _homeStaffState extends State<homeStaff> {
-  List<WaitlistEntry> waitlist = [];
+  List<WaitlistEntry> storeWaitlist = [];
+  List<WaitlistEntry> takeoutWaitlist = [];
   String? restaurantId;
 
   @override
@@ -100,10 +101,12 @@ class _homeStaffState extends State<homeStaff> {
             .get();
 
         setState(() {
-          waitlist = reservationQuery.docs.map((doc) {
+          storeWaitlist = [];
+          takeoutWaitlist = [];
+          reservationQuery.docs.forEach((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            final type = data['type'] == 1 ? '매장' : '포장';
-            return WaitlistEntry(
+            final type = doc['type'] == 1 ? '매장' : '포장';
+            final entry = WaitlistEntry(
               id: doc.id,
               name: data['nickname']?.toString() ?? 'Unknown',
               people: data['numberOfPeople'] ?? 0,
@@ -116,7 +119,12 @@ class _homeStaffState extends State<homeStaff> {
                   'Unknown',
               type: type,
             );
-          }).toList();
+            if (type == '매장') {
+              storeWaitlist.add(entry);
+            } else {
+              takeoutWaitlist.add(entry);
+            }
+          });
         });
       } catch (e) {
         print('Error fetching confirmed reservations: $e');
@@ -141,6 +149,24 @@ class _homeStaffState extends State<homeStaff> {
       print('Error cancelling reservation: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error cancelling reservation: $e')),
+      );
+    }
+  }
+
+  Future<void> _confirmArrival(String id) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('reservations')
+          .doc(id)
+          .update({'status': 'arrived'});
+      _fetchConfirmedReservations();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Arrival confirmed successfully.')),
+      );
+    } catch (e) {
+      print('Error confirming arrival: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error confirming arrival: $e')),
       );
     }
   }
@@ -213,11 +239,7 @@ class _homeStaffState extends State<homeStaff> {
                             Radius.circular(10),
                           )),
                         ),
-                        onPressed: () =>
-                            FlutterLocalNotification.showNotification(
-                          '도착알림',
-                          '도착 확인하였습니다.',
-                        ),
+                        onPressed: () => _confirmArrival(waitP.id),
                         child: Text(
                           '도착확인',
                           style: TextStyle(
@@ -286,30 +308,27 @@ class _homeStaffState extends State<homeStaff> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(70.0),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          toolbarHeight: 100,
-          automaticallyImplyLeading: false,
-          title: Text(
-            'waitez',
-            style: TextStyle(
-              color: Color(0xFF1C1C21),
-              fontSize: 18,
-              fontFamily: 'Epilogue',
-              fontWeight: FontWeight.w700,
-              height: 0.07,
-              letterSpacing: -0.27,
-            ),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        title: Text(
+          'waitez',
+          style: TextStyle(
+            color: Color(0xFF1C1C21),
+            fontSize: 18,
+            fontFamily: 'Epilogue',
+            fontWeight: FontWeight.w700,
+            height: 0.07,
+            letterSpacing: -0.27,
           ),
-          centerTitle: true,
-          actions: [
-            IconButton(
-                onPressed: _fetchConfirmedReservations,
-                icon: Icon(Icons.refresh)),
-          ],
         ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: _fetchConfirmedReservations,
+            icon: Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -329,9 +348,9 @@ class _homeStaffState extends State<homeStaff> {
               Divider(color: Colors.black, thickness: 2.0),
               Container(
                 width: screenWidth,
-                child: waitlist.isEmpty
+                child: storeWaitlist.isEmpty
                     ? Center(child: Text('현재 예약되어 있는 것이 존재하지 않습니다.'))
-                    : buildWaitlist(waitlist),
+                    : buildWaitlist(storeWaitlist),
               ),
               Text(
                 '포장',
@@ -343,11 +362,17 @@ class _homeStaffState extends State<homeStaff> {
                 ),
               ),
               Divider(color: Colors.black, thickness: 2.0),
+              Container(
+                width: screenWidth,
+                child: takeoutWaitlist.isEmpty
+                    ? Center(child: Text('현재 예약되어 있는 것이 존재하지 않습니다.'))
+                    : buildWaitlist(takeoutWaitlist),
+              ),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: staffButtom(),
+      bottomNavigationBar: staffBottom(),
     );
   }
 }

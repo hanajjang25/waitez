@@ -310,266 +310,314 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
+  void handleCommentButtonPressed() {
+    if (_currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('로그인해야 댓글을 작성할 수 있습니다.')),
+      );
+      return;
+    }
+
+    if (_commentController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('댓글을 입력하세요')),
+      );
+      return;
+    }
+
+    if (_commentController.text.length > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('댓글은 최대 100자까지 작성 가능합니다')),
+      );
+      return;
+    }
+
+    if (!_isValidKorean(_commentController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('댓글은 한글로만 작성 가능합니다')),
+      );
+      return;
+    }
+
+    addComment();
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool isAuthor = _currentUser?.email == widget.post['author'];
+    bool isAuthor = _currentNickname == widget.post['author'];
 
     return Scaffold(
       appBar: AppBar(),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.person, size: 40),
-                SizedBox(width: 10),
-                Column(
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        Icon(Icons.person, size: 40),
+                        SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.post['author'] ?? 'Unknown Author',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              widget.post['date'] ?? 'Unknown Date',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 20),
+                    _isEditingPost
+                        ? TextField(
+                            controller: _titleController,
+                            decoration: InputDecoration(labelText: 'Title'),
+                            enabled: false, // title은 수정 불가
+                          )
+                        : Text(
+                            widget.post['title']!,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                    SizedBox(height: 16),
+                    _isEditingPost
+                        ? TextField(
+                            controller: _contentController,
+                            decoration: InputDecoration(
+                              labelText: 'Content',
+                              errorText: _contentController.text.length > 500
+                                  ? '내용은 500자까지 작성 가능합니다'
+                                  : null,
+                            ),
+                            maxLines: 5,
+                          )
+                        : Text(
+                            widget.post['content']!,
+                            style: TextStyle(
+                              fontSize: 16,
+                            ),
+                          ),
+                    if (isAuthor)
+                      Column(
+                        children: [
+                          _isEditingPost
+                              ? Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: savePost,
+                                      child: Text('Save'),
+                                    ),
+                                    SizedBox(width: 10),
+                                    ElevatedButton(
+                                      onPressed: togglePostEditMode,
+                                      child: Text('Cancel'),
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                            MaterialStateProperty.all(
+                                                Colors.grey),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: togglePostEditMode,
+                                      child: Text('Edit'),
+                                      style: ElevatedButton.styleFrom(
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10))),
+                                    ),
+                                    SizedBox(width: 10),
+                                    ElevatedButton(
+                                      onPressed: confirmDeletePost,
+                                      child: Text('Delete'),
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              Colors.lightBlueAccent,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10))),
+                                    ),
+                                  ],
+                                ),
+                        ],
+                      ),
+                    SizedBox(height: 20),
+                    Divider(thickness: 1, color: Colors.black),
+                    SizedBox(height: 10),
                     Text(
-                      widget.post['author'] ?? 'Unknown Author',
+                      '댓글',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Text(
-                      widget.post['date'] ?? 'Unknown Date',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                    SizedBox(height: 20),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: NeverScrollableScrollPhysics(),
+                      itemCount: comments.length,
+                      itemBuilder: (context, index) {
+                        final comment = comments[index];
+                        bool isCommentAuthor =
+                            comment['author'] == (_currentNickname ?? '');
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.person, size: 30),
+                                  SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        comment['author']!,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        comment['date']!,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 5),
+                              _isEditing[index]
+                                  ? TextField(
+                                      controller: _editControllers[index],
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(),
+                                        errorText: _editControllers[index]
+                                                    .text
+                                                    .length >
+                                                100
+                                            ? '댓글은 최대 100자까지 작성 가능합니다'
+                                            : !_isValidKorean(
+                                                    _editControllers[index]
+                                                        .text)
+                                                ? '댓글은 한글로만 작성 가능합니다'
+                                                : null,
+                                      ),
+                                    )
+                                  : Text(
+                                      comment['content']!,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                              Row(
+                                children: [
+                                  if (isCommentAuthor)
+                                    TextButton(
+                                      onPressed: () => toggleEditMode(index),
+                                      child: Text(
+                                        _isEditing[index] ? 'Cancel' : 'Edit',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ),
+                                  if (_isEditing[index] && isCommentAuthor)
+                                    TextButton(
+                                      onPressed: () => saveComment(index),
+                                      child: Text(
+                                        'Save',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ),
+                                  if (isCommentAuthor)
+                                    TextButton(
+                                      onPressed: () =>
+                                          confirmDeleteComment(index),
+                                      child: Text(
+                                        'Delete',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              Divider(thickness: 1, color: Colors.grey),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+          Divider(thickness: 1, color: Colors.black),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    decoration: InputDecoration(
+                      hintText: '댓글을 입력하세요...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    enabled: _currentUser != null, // 로그인된 사용자만 입력 가능
+                  ),
+                ),
+                SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: handleCommentButtonPressed,
+                  child: Text('댓글 달기'),
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all(
+                        _currentUser != null
+                            ? Colors.lightBlueAccent
+                            : Colors.grey),
+                    foregroundColor: MaterialStateProperty.all(Colors.white),
+                    minimumSize: MaterialStateProperty.all(Size(50, 50)),
+                    padding: MaterialStateProperty.all(
+                        EdgeInsets.symmetric(horizontal: 10)),
+                    shape: MaterialStateProperty.all(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-            SizedBox(height: 20),
-            _isEditingPost
-                ? TextField(
-                    controller: _titleController,
-                    decoration: InputDecoration(labelText: 'Title'),
-                    enabled: false, // title은 수정 불가
-                  )
-                : Text(
-                    widget.post['title']!,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-            SizedBox(height: 16),
-            _isEditingPost
-                ? TextField(
-                    controller: _contentController,
-                    decoration: InputDecoration(
-                      labelText: 'Content',
-                      errorText: _contentController.text.length > 500
-                          ? '내용은 500자까지 작성 가능합니다'
-                          : null,
-                    ),
-                    maxLines: 5,
-                  )
-                : Text(
-                    widget.post['content']!,
-                    style: TextStyle(
-                      fontSize: 16,
-                    ),
-                  ),
-            SizedBox(height: 20),
-            if (isAuthor)
-              _isEditingPost
-                  ? Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: savePost,
-                          child: Text('Save'),
-                        ),
-                        SizedBox(width: 10),
-                        ElevatedButton(
-                          onPressed: togglePostEditMode,
-                          child: Text('Cancel'),
-                          style: ButtonStyle(
-                            backgroundColor:
-                                MaterialStateProperty.all(Colors.grey),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: togglePostEditMode,
-                          child: Text('Edit'),
-                          style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10))),
-                        ),
-                        SizedBox(width: 10),
-                        ElevatedButton(
-                          onPressed: confirmDeletePost,
-                          child: Text('Delete'),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.lightBlueAccent,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10))),
-                        ),
-                      ],
-                    ),
-            SizedBox(height: 20),
-            Divider(thickness: 1, color: Colors.black),
-            SizedBox(height: 10),
-            Text(
-              '댓글',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 20),
-            Expanded(
-              child: ListView.builder(
-                itemCount: comments.length,
-                itemBuilder: (context, index) {
-                  final comment = comments[index];
-                  bool isCommentAuthor =
-                      comment['author'] == (_currentNickname ?? '');
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.person, size: 30),
-                            SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  comment['author']!,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  comment['date']!,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 5),
-                        _isEditing[index]
-                            ? TextField(
-                                controller: _editControllers[index],
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  errorText:
-                                      _editControllers[index].text.length > 100
-                                          ? '댓글은 최대 100자까지 작성 가능합니다'
-                                          : !_isValidKorean(
-                                                  _editControllers[index].text)
-                                              ? '댓글은 한글로만 작성 가능합니다'
-                                              : null,
-                                ),
-                              )
-                            : Text(
-                                comment['content']!,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                ),
-                              ),
-                        Row(
-                          children: [
-                            if (isCommentAuthor)
-                              TextButton(
-                                onPressed: () => toggleEditMode(index),
-                                child: Text(
-                                  _isEditing[index] ? 'Cancel' : 'Edit',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                            if (_isEditing[index] && isCommentAuthor)
-                              TextButton(
-                                onPressed: () => saveComment(index),
-                                child: Text(
-                                  'Save',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                            if (isCommentAuthor)
-                              TextButton(
-                                onPressed: () => confirmDeleteComment(index),
-                                child: Text(
-                                  'Delete',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                          ],
-                        ),
-                        Divider(thickness: 1, color: Colors.grey),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            Divider(thickness: 1, color: Colors.black),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _commentController,
-                      decoration: InputDecoration(
-                        hintText: '댓글을 입력하세요...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        errorText: _commentController.text.length > 100
-                            ? '댓글은 최대 100자까지 작성 가능합니다'
-                            : !_isValidKorean(_commentController.text)
-                                ? '댓글은 한글로만 작성 가능합니다'
-                                : null,
-                      ),
-                      enabled: _currentUser != null, // 로그인된 사용자만 입력 가능
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: addComment,
-                    child: Text('댓글 달기'),
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(
-                          _currentUser != null
-                              ? Colors.lightBlueAccent
-                              : Colors.grey),
-                      foregroundColor: MaterialStateProperty.all(Colors.white),
-                      minimumSize: MaterialStateProperty.all(Size(50, 50)),
-                      padding: MaterialStateProperty.all(
-                          EdgeInsets.symmetric(horizontal: 10)),
-                      shape: MaterialStateProperty.all(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

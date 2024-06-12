@@ -31,9 +31,12 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
       if (user != null) {
         final today = DateTime.now();
         final startOfDay = DateTime(today.year, today.month, today.day);
+        final userNickname = user.isAnonymous
+            ? await _fetchAnonymousNickname(user.uid)
+            : user.displayName;
         final reservationQuery = await FirebaseFirestore.instance
             .collection('reservations')
-            .where('nickname', isEqualTo: user.displayName)
+            .where('nickname', isEqualTo: userNickname)
             .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
             .where('status', isEqualTo: 'confirmed')
             .get();
@@ -119,6 +122,26 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
     }
   }
 
+  Future<String> _fetchAnonymousNickname(String uid) async {
+    try {
+      final nonMemberQuery = await FirebaseFirestore.instance
+          .collection('nonmembers')
+          .where('uid', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (nonMemberQuery.docs.isNotEmpty) {
+        return nonMemberQuery.docs.first['nickname'];
+      } else {
+        print('No matching documents found for anonymous user UID: $uid');
+        throw Exception('Anonymous user nickname not found.');
+      }
+    } catch (e) {
+      print('Error fetching anonymous user nickname: $e');
+      throw e;
+    }
+  }
+
   Future<void> _fetchRestaurantDetails() async {
     if (restaurantId != null) {
       try {
@@ -171,7 +194,10 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
     if (user != null) {
       final cartQuery = await FirebaseFirestore.instance
           .collection('cart')
-          .where('nickname', isEqualTo: user.displayName)
+          .where('nickname',
+              isEqualTo: user.isAnonymous
+                  ? await _fetchAnonymousNickname(user.uid)
+                  : user.displayName)
           .get();
 
       if (cartQuery.docs.isEmpty) {
@@ -453,20 +479,9 @@ class MenuDetailsPage extends StatelessWidget {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null && reservationId != null) {
         await FirebaseFirestore.instance.collection('cart').add({
-          'nickname': user.displayName,
-          'restaurantId': restaurantId,
-          'menuItem': menuItem,
-          'reservationId': reservationId, // reservationId 추가
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('장바구니에 추가되었습니다.')),
-        );
-      } else if (user != null && user.isAnonymous) {
-        // Handle anonymous user
-        await FirebaseFirestore.instance.collection('cart').add({
-          'uid': user.uid,
+          'nickname': user.isAnonymous
+              ? await _fetchAnonymousNickname(user.uid)
+              : user.displayName,
           'restaurantId': restaurantId,
           'menuItem': menuItem,
           'reservationId': reservationId, // reservationId 추가
@@ -488,6 +503,26 @@ class MenuDetailsPage extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error adding to cart: $e')),
       );
+    }
+  }
+
+  Future<String> _fetchAnonymousNickname(String uid) async {
+    try {
+      final nonMemberQuery = await FirebaseFirestore.instance
+          .collection('nonmembers')
+          .where('uid', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (nonMemberQuery.docs.isNotEmpty) {
+        return nonMemberQuery.docs.first['nickname'];
+      } else {
+        print('No matching documents found for anonymous user UID: $uid');
+        throw Exception('Anonymous user nickname not found.');
+      }
+    } catch (e) {
+      print('Error fetching anonymous user nickname: $e');
+      throw e;
     }
   }
 

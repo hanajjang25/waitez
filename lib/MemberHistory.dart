@@ -43,7 +43,18 @@ class History extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 30),
+            SizedBox(height: 40),
+            Text(
+              '매장/포장 : 매장',
+              style: TextStyle(
+                color: Color(0xFF1C1C21),
+                fontSize: 18,
+                fontFamily: 'Epilogue',
+                height: 0.07,
+                letterSpacing: -0.27,
+              ),
+            ),
+            SizedBox(height: 50),
             Text(
               '주소 : 서울시 강남구',
               style: TextStyle(

@@ -122,60 +122,62 @@ class _WritePostPageState extends State<WritePostPage> {
         appBar: AppBar(
           title: Text('글 작성'),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              SizedBox(height: 30),
-              Container(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '글 작성',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    fontWeight: FontWeight.w700,
-                    height: 0.07,
-                    letterSpacing: -0.27,
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                SizedBox(height: 30),
+                Container(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '글 작성',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C21),
+                      fontSize: 18,
+                      fontFamily: 'Epilogue',
+                      fontWeight: FontWeight.w700,
+                      height: 0.07,
+                      letterSpacing: -0.27,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(height: 30),
-              Container(
-                  width: 500,
-                  child: Divider(color: Colors.black, thickness: 2.0)),
-              SizedBox(height: 50),
-              TextField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: '제목',
-                  errorText: _titleError,
-                ),
-              ),
-              SizedBox(height: 20),
-              TextField(
-                controller: _contentController,
-                decoration: InputDecoration(
-                  labelText: '내용',
-                  errorText: _contentError,
-                ),
-                maxLines: 5,
-              ),
-              SizedBox(height: 50),
-              ElevatedButton(
-                onPressed: submitPost,
-                child: Text('등록'),
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                SizedBox(height: 30),
+                Container(
+                    width: 500,
+                    child: Divider(color: Colors.black, thickness: 2.0)),
+                SizedBox(height: 50),
+                TextField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    labelText: '제목',
+                    errorText: _titleError,
                   ),
-                  backgroundColor: !_isTitleEmpty && !_isContentEmpty
-                      ? Colors.lightBlueAccent
-                      : Colors.red,
                 ),
-              ),
-            ],
+                SizedBox(height: 20),
+                TextField(
+                  controller: _contentController,
+                  decoration: InputDecoration(
+                    labelText: '내용',
+                    errorText: _contentError,
+                  ),
+                  maxLines: 5,
+                ),
+                SizedBox(height: 50),
+                ElevatedButton(
+                  onPressed: submitPost,
+                  child: Text('등록'),
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    backgroundColor: !_isTitleEmpty && !_isContentEmpty
+                        ? Colors.lightBlueAccent
+                        : Colors.red,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

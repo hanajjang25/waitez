@@ -283,6 +283,16 @@ class _SearchState extends State<search> {
                 ),
               ),
             ]),
+            if (_currentLocation != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 38.0),
+                child: Text(
+                  _currentLocation!,
+                  style: TextStyle(
+                    color: Colors.black,
+                  ),
+                ),
+              ),
             SizedBox(height: 20),
             TextField(
               onChanged: (value) => _updateSearch(value),
