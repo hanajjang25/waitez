@@ -11,29 +11,46 @@ class UserPostsPage extends StatefulWidget {
 class _UserPostsPageState extends State<UserPostsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  String? nickname;
 
-  Future<List<Map<String, String>>> fetchUserPosts() async {
+  Future<void> fetchNickname() async {
     String? userEmail = _auth.currentUser?.email;
-    QuerySnapshot snapshot;
 
     if (userEmail != null) {
-      snapshot = await _firestore
-          .collection('community')
-          .where('author', isEqualTo: userEmail)
+      var userSnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: userEmail)
+          .limit(1)
           .get();
-    } else {
-      snapshot = await _firestore.collection('community').get();
-    }
 
-    return snapshot.docs.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      return data.map((key, value) {
-        if (value is Timestamp) {
-          return MapEntry(key, (value as Timestamp).toDate().toIso8601String());
-        }
-        return MapEntry(key, value.toString());
-      });
-    }).toList();
+      if (userSnapshot.docs.isNotEmpty) {
+        setState(() {
+          nickname = userSnapshot.docs.first['nickname'];
+        });
+      }
+    }
+  }
+
+  Future<List<Map<String, String>>> fetchUserPosts() async {
+    if (nickname != null) {
+      QuerySnapshot snapshot = await _firestore
+          .collection('community')
+          .where('author', isEqualTo: nickname)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return data.map((key, value) {
+          if (value is Timestamp) {
+            return MapEntry(
+                key, (value as Timestamp).toDate().toIso8601String());
+          }
+          return MapEntry(key, value.toString());
+        });
+      }).toList();
+    } else {
+      return [];
+    }
   }
 
   void navigateToPostDetail(Map<String, String> post) {
@@ -60,6 +77,12 @@ class _UserPostsPageState extends State<UserPostsPage> {
   String formatTimestamp(String timestamp) {
     DateTime dateTime = DateTime.parse(timestamp);
     return "${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchNickname();
   }
 
   @override

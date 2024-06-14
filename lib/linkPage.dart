@@ -51,6 +51,11 @@ class StartPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/sendingMessage');
                   },
                   child: Text('문자')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/nonMemberWaitingNumber');
+                  },
+                  child: Text('비회원대기순번')),
             ],
           ),
         ]),

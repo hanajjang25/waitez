@@ -5,13 +5,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'UserWaitingDetail.dart';
 import 'UserBottom.dart';
+import 'NonMemberBottom.dart';
 
-class waitingNumber extends StatefulWidget {
+class nonMemberWaitingNumber extends StatefulWidget {
   @override
   _WaitingNumberState createState() => _WaitingNumberState();
 }
 
-class _WaitingNumberState extends State<waitingNumber> {
+class _WaitingNumberState extends State<nonMemberWaitingNumber> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String _nickname = '';
@@ -176,7 +177,7 @@ class _WaitingNumberState extends State<waitingNumber> {
                 ),
               ),
       ),
-      bottomNavigationBar: menuButtom(),
+      bottomNavigationBar: nonMemberBottom(),
     );
   }
 

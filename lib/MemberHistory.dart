@@ -6,16 +6,32 @@ class History extends StatelessWidget {
   final String date;
   final String imageAsset;
   final List<Map<String, dynamic>> menuItems;
+  final String type;
+  final String address;
+  final String operatingHours;
 
   History({
     required this.restaurantName,
     required this.date,
     required this.imageAsset,
     required this.menuItems,
+    required this.type,
+    required this.address,
+    required this.operatingHours,
   });
 
   @override
   Widget build(BuildContext context) {
+    int totalPrice = menuItems.fold(0, (sum, item) {
+      int price = item['price'] is int
+          ? item['price']
+          : int.parse(item['price'].toString());
+      int quantity = item['quantity'] is int
+          ? item['quantity']
+          : int.parse(item['quantity'].toString());
+      return sum + (price * quantity);
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text('이력조회'),
@@ -43,40 +59,40 @@ class History extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 20),
             Text(
-              '매장/포장 : 매장',
+              '매장/포장 : $type',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
                 fontFamily: 'Epilogue',
-                height: 0.07,
+                height: 1.2,
                 letterSpacing: -0.27,
               ),
             ),
-            SizedBox(height: 50),
+            SizedBox(height: 20),
             Text(
-              '주소 : 서울시 강남구',
+              '주소 : $address',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
                 fontFamily: 'Epilogue',
-                height: 0.07,
+                height: 1.2,
                 letterSpacing: -0.27,
               ),
             ),
-            SizedBox(height: 30),
+            SizedBox(height: 20),
             Text(
-              '영업시간 : 09:00-12:00',
+              '영업시간 : $operatingHours',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
                 fontFamily: 'Epilogue',
-                height: 0.07,
+                height: 1.2,
                 letterSpacing: -0.27,
               ),
             ),
-            SizedBox(height: 30),
+            SizedBox(height: 20),
             Text(
               date,
               style: TextStyle(
@@ -112,7 +128,7 @@ class History extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('총 금액', style: TextStyle(fontSize: 18)),
-                Text('₩ ', style: TextStyle(fontSize: 18)),
+                Text('₩ $totalPrice', style: TextStyle(fontSize: 18)),
               ],
             ),
           ],

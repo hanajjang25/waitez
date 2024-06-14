@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'linkPage.dart';
@@ -36,6 +39,7 @@ import 'communityMyPage.dart';
 import 'notification.dart';
 import 'sendingMessage.dart';
 import 'RestaurantEditBefore.dart';
+import 'nonMemberWaitingNumber.dart';
 import 'package:notification_permissions/notification_permissions.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
@@ -105,8 +109,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   @override
   void initState() {
-    FlutterLocalNotification.init();
     super.initState();
+    FlutterLocalNotification.init();
 
     // Listen for messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
@@ -158,20 +162,6 @@ class _MyAppState extends State<MyApp> {
               );
             }
             return _errorRoute();
-          case '/history':
-            if (settings.arguments is Map<String, dynamic>) {
-              final args = settings.arguments as Map<String, dynamic>;
-              return MaterialPageRoute(
-                builder: (context) => History(
-                  restaurantName: args['restaurantName'],
-                  date: args['date'],
-                  imageAsset: args['imageAsset'],
-                  menuItems: args['menuItems'],
-                ),
-              );
-            }
-            return _errorRoute();
-          // Add other routes that require arguments here if necessary
           default:
             return null;
         }
@@ -185,6 +175,7 @@ class _MyAppState extends State<MyApp> {
         '/findPassword_email': (context) => findPasswordEmail(),
         '/regRestaurant': (context) => regRestaurant(),
         '/waitingNumber': (context) => waitingNumber(),
+        '/nonMemberWaitingNumber': (context) => nonMemberWaitingNumber(),
         '/search': (context) => search(),
         '/home': (context) => home(),
         '/homeStaff': (context) => homeStaff(),

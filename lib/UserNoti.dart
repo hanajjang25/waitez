@@ -99,7 +99,7 @@ class _NotiState extends State<noti> {
             child: Row(children: [
               SizedBox(width: 15),
               Text(
-                '알림',
+                '불참횟수',
                 style: TextStyle(
                   color: Color(0xFF1C1C21),
                   fontSize: 18,
@@ -111,36 +111,14 @@ class _NotiState extends State<noti> {
           ),
           SizedBox(height: 10),
           Divider(color: Colors.black, thickness: 2.0),
-          Expanded(
-            child: ListView.builder(
-              itemCount: notifications.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: Icon(Icons.notifications),
-                  title: Text(notifications[index]),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: Text("Notification"),
-                          content: Text(notifications[index]),
-                          actions: [
-                            TextButton(
-                              child: Text("Close"),
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                    NotificationService.sendSmsNotification(
-                        notifications[index], ["01023209299"]);
-                  },
-                );
-              },
+          SizedBox(height: 50),
+          Text(
+            '1번',
+            style: TextStyle(
+              color: Color(0xFF1C1C21),
+              fontSize: 18,
+              fontFamily: 'Epilogue',
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

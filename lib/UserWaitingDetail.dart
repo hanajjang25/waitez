@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geocoding/geocoding.dart';
 import 'UserBottom.dart';
 import 'UserCart.dart'; // Import the Cart page
+import 'notification.dart';
 
 class waitingDetail extends StatefulWidget {
   final String restaurantName;
@@ -95,7 +96,7 @@ class _waitingDetailState extends State<waitingDetail> {
 
         // Fetch order details from Firestore
         var orderSnapshot = await FirebaseFirestore.instance
-            .collection('orders')
+            .collection('cart')
             .where('restaurantId', isEqualTo: restaurantId)
             .where('reservationId', isEqualTo: widget.reservationId)
             .get();
@@ -106,14 +107,31 @@ class _waitingDetailState extends State<waitingDetail> {
 
           for (var doc in orderSnapshot.docs) {
             var item = doc.data();
-            int price = item['price'] is int
-                ? item['price']
-                : (item['price'] as num).toInt();
-            int quantity = item['quantity'] is int
-                ? item['quantity']
-                : (item['quantity'] as num).toInt();
-            items.add(item);
-            total += price * quantity;
+            var menuItem = item['menuItem'];
+            int price = 0;
+            int quantity = 0;
+
+            if (menuItem != null) {
+              if (menuItem['price'] != null) {
+                price = menuItem['price'] is int
+                    ? menuItem['price']
+                    : int.tryParse(menuItem['price'].toString()) ?? 0;
+              }
+
+              if (menuItem['quantity'] != null) {
+                quantity = menuItem['quantity'] is int
+                    ? menuItem['quantity']
+                    : int.tryParse(menuItem['quantity'].toString()) ?? 0;
+              }
+
+              items.add({
+                'name': menuItem['menuName'] ?? 'Unknown',
+                'price': price,
+                'quantity': quantity,
+              });
+
+              total += price * quantity;
+            }
           }
 
           setState(() {
@@ -136,12 +154,39 @@ class _waitingDetailState extends State<waitingDetail> {
   }
 
   void showCancelDialog() {
+    final TextEditingController reasonController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('예약 취소'),
-          content: Text('정말 예약을 취소하시겠습니까?'),
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('예약취소 사유를 입력해주세요.'),
+                TextFormField(
+                  controller: reasonController,
+                  decoration: InputDecoration(hintText: '사유 입력'),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '사유를 입력해주세요.';
+                    }
+                    if (value.length < 2) {
+                      return '사유는 최소 2글자 이상이어야 합니다.';
+                    }
+                    if (value.length > 100) {
+                      return '사유는 최대 100글자 이하이어야 합니다.';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -151,24 +196,38 @@ class _waitingDetailState extends State<waitingDetail> {
             ),
             TextButton(
               onPressed: () async {
-                try {
-                  // Firestore에서 예약을 삭제
-                  await FirebaseFirestore.instance
-                      .collection('reservations')
-                      .doc(widget.reservationId)
-                      .delete();
+                if (_formKey.currentState!.validate()) {
+                  String reason = reasonController.text;
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('예약이 취소되었습니다.')),
-                  );
+                  try {
+                    // Firestore에서 예약을 삭제
+                    await FirebaseFirestore.instance
+                        .collection('reservations')
+                        .doc(widget.reservationId)
+                        .delete();
 
-                  Navigator.of(context).pop();
-                  Navigator.pushNamed(context, '/waitingNumber');
-                } catch (e) {
-                  print('Error deleting reservation: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('예약 취소 중 오류가 발생했습니다.')),
-                  );
+                    // Firestore에 예약취소 사유 저장 (예: 'cancellations' 컬렉션에 추가)
+                    await FirebaseFirestore.instance
+                        .collection('cancellations')
+                        .add({
+                      'reservationId': widget.reservationId,
+                      'reason': reason,
+                      'timestamp': Timestamp.now(),
+                    });
+
+                    FlutterLocalNotification.showNotification(
+                      '예약취소',
+                      '예약취소 성공',
+                    );
+
+                    Navigator.of(context).pop();
+                    Navigator.pushNamed(context, '/waitingNumber');
+                  } catch (e) {
+                    print('Error deleting reservation: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('예약 취소 중 오류가 발생했습니다.')),
+                    );
+                  }
                 }
               },
               child: Text('확인'),
@@ -482,7 +541,7 @@ class _waitingDetailState extends State<waitingDetail> {
                         itemBuilder: (context, index) {
                           var item = orderItems[index];
                           return ListTile(
-                            title: Text(item['menuName']),
+                            title: Text(item['name']),
                             subtitle: Text('수량: ${item['quantity']}'),
                             trailing: Text('${item['price']}원'),
                           );
@@ -573,7 +632,7 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '매장/포장인지 보여주는곳!!!',
+              isTakeout ? '포장' : '매장',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,

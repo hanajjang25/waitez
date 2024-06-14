@@ -348,22 +348,44 @@ class AddressPage extends StatelessWidget {
       return;
     }
 
-    String email = user.email!;
+    if (user.isAnonymous) {
+      String uid = user.uid;
 
-    // 이메일을 통해 Firestore에서 사용자 문서 찾기
-    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .get();
+      // uid를 통해 Firestore에서 nonmember 문서 찾기
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('non_members')
+          .where('uid', isEqualTo: uid)
+          .get();
 
-    if (querySnapshot.docs.isNotEmpty) {
-      // 문서가 존재하면 업데이트
-      DocumentReference userDoc = querySnapshot.docs[0].reference;
-      await userDoc.update({'location': address}).catchError((error) {
-        print('Failed to update user location: $error');
-      });
+      if (querySnapshot.docs.isNotEmpty) {
+        // 문서가 존재하면 업데이트
+        DocumentReference nonMemberDoc = querySnapshot.docs[0].reference;
+        await nonMemberDoc.update({'location': address}).catchError((error) {
+          print('Failed to update non-member location: $error');
+        });
+        print('Non-member location updated: $address');
+      } else {
+        print('Non-member document not found');
+      }
     } else {
-      print('User document not found');
+      String email = user.email!;
+
+      // 이메일을 통해 Firestore에서 사용자 문서 찾기
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // 문서가 존재하면 업데이트
+        DocumentReference userDoc = querySnapshot.docs[0].reference;
+        await userDoc.update({'location': address}).catchError((error) {
+          print('Failed to update user location: $error');
+        });
+        print('User location updated: $address');
+      } else {
+        print('User document not found');
+      }
     }
   }
 

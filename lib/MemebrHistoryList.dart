@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'UserBottom.dart';
-import 'Memberhistory.dart'; // History 페이지를 임포트
+import 'MemberHistory.dart';
 
 class historyList extends StatefulWidget {
   @override
@@ -13,7 +13,7 @@ class historyList extends StatefulWidget {
 class _historyListState extends State<historyList> {
   List<Map<String, dynamic>> reservations = [];
   String _searchQuery = '';
-  String? nickname = null; // nullable로 변경
+  String? nickname = null;
 
   @override
   void initState() {
@@ -32,7 +32,6 @@ class _historyListState extends State<historyList> {
         setState(() {
           nickname = userDoc['nickname'] ?? 'Unknown';
         });
-        // nickname을 설정한 후에 reservations를 가져옴
         if (nickname != null) {
           await _fetchReservations(nickname!);
         }
@@ -61,13 +60,27 @@ class _historyListState extends State<historyList> {
 
       if (restaurantDoc.exists) {
         var restaurantData = restaurantDoc.data();
-        String restaurantName = restaurantData?['restaurantName'] ?? '';
-        String restaurantPhoto = restaurantData?['photoUrl'] ?? '';
-        if (restaurantName.isNotEmpty && restaurantPhoto.isNotEmpty) {
-          reservation['restaurantName'] = restaurantName;
-          reservation['restaurantPhoto'] = restaurantPhoto;
-          fetchedReservations.add(reservation);
-        }
+        reservation['restaurantName'] =
+            restaurantData?['restaurantName'] ?? 'Unknown';
+        reservation['restaurantPhoto'] =
+            restaurantData?['photoUrl'] ?? 'assets/images/malatang.png';
+        reservation['address'] = restaurantData?['location'] ?? 'Unknown';
+        reservation['operatingHours'] =
+            restaurantData?['businessHours'] ?? 'Unknown';
+        reservation['type'] = (reservation['type'] == 1)
+            ? '매장'
+            : (reservation['type'] == 2)
+                ? '포장'
+                : 'Unknown';
+        reservation['menuItems'] = await _fetchMenuItems(reservation['id']);
+        fetchedReservations.add(reservation);
+      } else {
+        reservation['restaurantName'] = 'Unknown';
+        reservation['restaurantPhoto'] = 'assets/images/malatang.png';
+        reservation['address'] = 'Unknown';
+        reservation['operatingHours'] = 'Unknown';
+        reservation['type'] = 'Unknown';
+        reservation['menuItems'] = [];
       }
     }
 
@@ -76,19 +89,11 @@ class _historyListState extends State<historyList> {
     });
   }
 
-  String formatDate(dynamic timestamp) {
-    if (timestamp is Timestamp) {
-      var date = timestamp.toDate();
-      var localDate = date.toLocal(); // 로컬 시간대로 변환
-      var formatter = DateFormat('yyyy-MM-dd'); // 날짜만 표시하도록 형식 지정
-      return formatter.format(localDate);
-    } else if (timestamp is DateTime) {
-      var localDate = timestamp.toLocal(); // 로컬 시간대로 변환
-      var formatter = DateFormat('yyyy-MM-dd'); // 날짜만 표시하도록 형식 지정
-      return formatter.format(localDate);
-    } else {
-      return 'Invalid date';
-    }
+  String formatDate(Timestamp timestamp) {
+    var date = timestamp.toDate();
+    var localDate = date.toLocal(); // 로컬 시간대로 변환
+    var formatter = DateFormat('yyyy-MM-dd');
+    return formatter.format(localDate);
   }
 
   Future<List<Map<String, dynamic>>> _fetchMenuItems(
@@ -103,10 +108,25 @@ class _historyListState extends State<historyList> {
       var item = doc.data();
       var menuItem = item['menuItem'];
       if (menuItem != null) {
+        int quantity = 0;
+        int price = 0;
+
+        if (menuItem['quantity'] is int) {
+          quantity = menuItem['quantity'];
+        } else if (menuItem['quantity'] is String) {
+          quantity = int.tryParse(menuItem['quantity']) ?? 0;
+        }
+
+        if (menuItem['price'] is int) {
+          price = menuItem['price'];
+        } else if (menuItem['price'] is String) {
+          price = int.tryParse(menuItem['price']) ?? 0;
+        }
+
         menuItems.add({
           'name': menuItem['menuName'] ?? 'Unknown',
-          'price': menuItem['price'] ?? 0,
-          'quantity': menuItem['quantity'] ?? 0,
+          'price': price,
+          'quantity': quantity,
         });
       }
     }
@@ -144,33 +164,46 @@ class _historyListState extends State<historyList> {
             ),
             SizedBox(height: 10),
             Expanded(
-              child: ListView(
-                children: filteredReservations.map((reservation) {
-                  return ReservationCard(
-                    imageAsset: reservation['restaurantPhoto'] ?? '',
-                    restaurantName: reservation['restaurantName'] ?? '',
-                    date: formatDate(reservation['timestamp']),
-                    buttonText: '자세히 보기',
-                    onPressed: () async {
-                      List<Map<String, dynamic>> menuItems =
-                          await _fetchMenuItems(reservation['id']);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => History(
-                            restaurantName:
-                                reservation['restaurantName'] ?? 'Unknown',
-                            date: formatDate(reservation['timestamp']),
-                            imageAsset: reservation['restaurantPhoto'] ??
-                                'assets/images/malatang.png',
-                            menuItems: menuItems,
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                }).toList(),
-              ),
+              child: filteredReservations.isEmpty
+                  ? Center(
+                      child: Text(
+                        _searchQuery.isEmpty
+                            ? '이력내역이 없습니다'
+                            : '검색과 일치하는 음식점 이력조회가 존재하지 않습니다',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                  : ListView(
+                      children: filteredReservations.map((reservation) {
+                        return ReservationCard(
+                          imageAsset: reservation['restaurantPhoto'] ?? '',
+                          restaurantName: reservation['restaurantName'] ?? '',
+                          date: formatDate(reservation['timestamp']),
+                          buttonText: '자세히 보기',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => History(
+                                  restaurantName:
+                                      reservation['restaurantName'] ??
+                                          'Unknown',
+                                  date: formatDate(reservation['timestamp']),
+                                  imageAsset: reservation['restaurantPhoto'] ??
+                                      'assets/images/malatang.png',
+                                  menuItems: reservation['menuItems'] ?? [],
+                                  type: reservation['type'] ?? 'Unknown',
+                                  address: reservation['address'] ?? 'Unknown',
+                                  operatingHours:
+                                      reservation['operatingHours'] ??
+                                          'Unknown',
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      }).toList(),
+                    ),
             ),
           ],
         ),

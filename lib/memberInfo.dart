@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'notification.dart';
 import 'UserHome.dart'; // UserHome 클래스를 import
 
 class memberInfo extends StatefulWidget {
@@ -135,6 +136,97 @@ class _MemberInfoState extends State<memberInfo> {
 
   bool _validatePhone(String phone) {
     return RegExp(r'^010-\d{4}-\d{4}$').hasMatch(phone);
+  }
+
+  void showDeleteAccountDialog() {
+    final TextEditingController reasonController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('회원탈퇴'),
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('회원탈퇴 사유를 입력해주세요.'),
+                TextFormField(
+                  controller: reasonController,
+                  decoration: InputDecoration(hintText: '사유 입력'),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '사유를 입력해주세요.';
+                    }
+                    if (value.length < 2) {
+                      return '사유는 최소 2글자 이상이어야 합니다.';
+                    }
+                    if (value.length > 100) {
+                      return '사유는 최대 100글자 이하이어야 합니다.';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('취소'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (_formKey.currentState!.validate()) {
+                  String reason = reasonController.text;
+                  User? user = FirebaseAuth.instance.currentUser;
+
+                  if (user != null) {
+                    try {
+                      // 회원탈퇴 사유를 Firestore에 저장 (예: 'deletion_reasons' 컬렉션에 추가)
+                      await FirebaseFirestore.instance
+                          .collection('deletion_reasons')
+                          .add({
+                        'userId': user.uid,
+                        'reason': reason,
+                        'timestamp': Timestamp.now(),
+                      });
+
+                      // 사용자 계정 삭제
+                      await user.delete();
+
+                      FlutterLocalNotification.showNotification(
+                        '회원탈퇴',
+                        '회원탈퇴가 성공적으로 처리되었습니다.',
+                      );
+
+                      Navigator.of(context).pop();
+                      Navigator.pushNamedAndRemoveUntil(
+                          context, '/login', (route) => false);
+                    } catch (e) {
+                      print('Error deleting user account: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('회원탈퇴 중 오류가 발생했습니다. 다시 시도해주세요.')),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('로그인된 사용자가 없습니다.')),
+                    );
+                  }
+                }
+              },
+              child: Text('확인'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -335,33 +427,7 @@ class _MemberInfoState extends State<memberInfo> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton(
-                    onPressed: () {
-                      // 회원탈퇴 기능 호출
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: Text('회원탈퇴'),
-                            content: Text('정말로 회원탈퇴를 하시겠습니까?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                child: Text('취소'),
-                              ),
-                              TextButton(
-                                onPressed: () async {
-                                  Navigator.of(context).pop();
-                                  await _deleteUserAccount();
-                                },
-                                child: Text('확인'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
+                    onPressed: showDeleteAccountDialog,
                     child: Text(
                       '회원탈퇴',
                       style: TextStyle(

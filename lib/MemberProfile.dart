@@ -53,6 +53,7 @@ class _ProfileState extends State<Profile> {
 
     for (var doc in reservationQuery.docs) {
       var reservation = doc.data();
+      reservation['id'] = doc.id; // 예약 ID를 포함
       var restaurantId = reservation['restaurantId'];
 
       var restaurantDoc = await FirebaseFirestore.instance
@@ -66,17 +67,66 @@ class _ProfileState extends State<Profile> {
             restaurantData?['restaurantName'] ?? 'Unknown';
         reservation['restaurantPhoto'] =
             restaurantData?['photoUrl'] ?? 'assets/images/malatang.png';
+        reservation['address'] = restaurantData?['location'] ?? 'Unknown';
+        reservation['operatingHours'] =
+            restaurantData?['businessHours'] ?? 'Unknown';
+        reservation['type'] = (reservation['type'] == 1)
+            ? '매장'
+            : (reservation['type'] == 2)
+                ? '포장'
+                : 'Unknown';
+        reservation['menuItems'] = await _fetchMenuItems(reservation['id']);
+        fetchedReservations.add(reservation);
       } else {
         reservation['restaurantName'] = 'Unknown';
         reservation['restaurantPhoto'] = 'assets/images/malatang.png';
+        reservation['address'] = 'Unknown';
+        reservation['operatingHours'] = 'Unknown';
+        reservation['type'] = 'Unknown';
+        reservation['menuItems'] = [];
       }
-
-      fetchedReservations.add(reservation);
     }
 
     setState(() {
       reservations = fetchedReservations;
     });
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchMenuItems(
+      String reservationId) async {
+    final cartQuery = await FirebaseFirestore.instance
+        .collection('cart')
+        .where('reservationId', isEqualTo: reservationId)
+        .get();
+
+    List<Map<String, dynamic>> menuItems = [];
+    for (var doc in cartQuery.docs) {
+      var item = doc.data();
+      var menuItem = item['menuItem'];
+      if (menuItem != null) {
+        int quantity = 0;
+        int price = 0;
+
+        if (menuItem['quantity'] is int) {
+          quantity = menuItem['quantity'];
+        } else if (menuItem['quantity'] is String) {
+          quantity = int.tryParse(menuItem['quantity']) ?? 0;
+        }
+
+        if (menuItem['price'] is int) {
+          price = menuItem['price'];
+        } else if (menuItem['price'] is String) {
+          price = int.tryParse(menuItem['price']) ?? 0;
+        }
+
+        menuItems.add({
+          'name': menuItem['menuName'] ?? 'Unknown',
+          'price': price,
+          'quantity': quantity,
+        });
+      }
+    }
+    return menuItems;
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -266,6 +316,10 @@ class _ProfileState extends State<Profile> {
                           imageAsset: reservation['restaurantPhoto'] ??
                               'assets/images/malatang.png',
                           menuItems: reservation['menuItems'] ?? [],
+                          type: reservation['type'] ?? 'Unknown',
+                          address: reservation['address'] ?? 'Unknown',
+                          operatingHours:
+                              reservation['operatingHours'] ?? 'Unknown',
                         ),
                       ),
                     );

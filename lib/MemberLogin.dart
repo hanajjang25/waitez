@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 class login extends StatefulWidget {
   @override
@@ -43,10 +44,29 @@ class _LoginState extends State<login> {
         user = userCredential.user;
         authWay = 1;
 
-        await _saveLoginStatus(true);
-        await _updateLoginState(user!.uid, true); // 로그인 상태 업데이트
+        // Fetch user's noShowCount and lastLogin
+        var userDoc = await _firestore.collection('users').doc(user!.uid).get();
+        if (userDoc.exists) {
+          var userData = userDoc.data()!;
+          int noShowCount = userData['noShowCount'] ?? 0;
+          Timestamp lastLogin = userData['lastLogin'] ?? Timestamp.now();
 
-        return "success";
+          // Check if noShowCount % 4 == 0 and if lastLogin is within the last week
+          if (noShowCount % 4 == 0) {
+            DateTime lastLoginDate = lastLogin.toDate();
+            DateTime now = DateTime.now();
+            if (now.difference(lastLoginDate).inDays < 7) {
+              return "blocked"; // User is blocked due to noShowCount
+            }
+          }
+
+          await _saveLoginStatus(true);
+          await _updateLoginState(user!.uid, true); // 로그인 상태 업데이트
+
+          return "success";
+        } else {
+          return "userNotFound";
+        }
       } else {
         return "userNotFound";
       }
@@ -337,6 +357,25 @@ class _LoginState extends State<login> {
                                       },
                                     );
                                   }
+                                } else if (loginResult == "blocked") {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text('로그인 오류'),
+                                        content: Text(
+                                            '누적된 노쇼로 인해 일주일 동안 로그인할 수 없습니다.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(context).pop();
+                                            },
+                                            child: Text('OK'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
                                 } else {
                                   String errorMessage;
                                   switch (loginResult) {

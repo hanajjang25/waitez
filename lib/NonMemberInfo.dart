@@ -12,7 +12,8 @@ class nonMemberInfo extends StatefulWidget {
 
 class _NonMemberInfoState extends State<nonMemberInfo> {
   final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _phoneController =
+      TextEditingController(text: '010-');
 
   String? _errorMessage;
 
@@ -149,7 +150,8 @@ class _NonMemberInfoState extends State<nonMemberInfo> {
               controller: _nicknameController,
               decoration: InputDecoration(),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[ㄱ-ㅎㅏ-ㅣ가-힣]')),
+                FilteringTextInputFormatter.allow(
+                    RegExp(r'[ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z0-9]')),
               ],
               keyboardType: TextInputType.text,
             ),
@@ -173,6 +175,9 @@ class _NonMemberInfoState extends State<nonMemberInfo> {
                 TextInputFormatter.withFunction(
                   (oldValue, newValue) {
                     String newText = _formatPhoneNumber(newValue.text);
+                    if (!newText.startsWith('010-')) {
+                      newText = '010-' + newText.replaceAll('010-', '');
+                    }
                     return TextEditingValue(
                       text: newText,
                       selection:

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'StaffBottom.dart';
@@ -43,7 +42,6 @@ class _homeStaffState extends State<homeStaff> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // 현재 로그인된 이메일을 이용하여 사용자 정보 가져오기
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -53,7 +51,6 @@ class _homeStaffState extends State<homeStaff> {
           final nickname = userDoc.data()?['nickname'];
 
           if (nickname != null) {
-            // 음식점 DB에서 nickname과 일치하는 음식점 찾기
             final restaurantQuery = await FirebaseFirestore.instance
                 .collection('restaurants')
                 .where('nickname', isEqualTo: nickname)
@@ -100,29 +97,35 @@ class _homeStaffState extends State<homeStaff> {
             .where('status', isEqualTo: 'confirmed')
             .get();
 
+        final today = DateTime.now().toLocal();
+        final formattedToday = "${today.year}-${today.month}-${today.day}";
+
         setState(() {
           storeWaitlist = [];
           takeoutWaitlist = [];
           reservationQuery.docs.forEach((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            final type = doc['type'] == 1 ? '매장' : '포장';
-            final entry = WaitlistEntry(
-              id: doc.id,
-              name: data['nickname']?.toString() ?? 'Unknown',
-              people: data['numberOfPeople'] ?? 0,
-              phoneNum: data['phone']?.toString() ?? 'Unknown',
-              timeStamp: (data['timestamp'] as Timestamp?)
-                      ?.toDate()
-                      .toLocal()
-                      .toString()
-                      .split(' ')[0] ??
-                  'Unknown',
-              type: type,
-            );
-            if (type == '매장') {
-              storeWaitlist.add(entry);
-            } else {
-              takeoutWaitlist.add(entry);
+            final timestamp =
+                (data['timestamp'] as Timestamp?)?.toDate().toLocal();
+            final formattedTimestamp = timestamp != null
+                ? "${timestamp.year}-${timestamp.month}-${timestamp.day}"
+                : 'Unknown';
+
+            if (formattedTimestamp == formattedToday) {
+              final type = doc['type'] == 1 ? '매장' : '포장';
+              final entry = WaitlistEntry(
+                id: doc.id,
+                name: data['nickname']?.toString() ?? 'Unknown',
+                people: data['numberOfPeople'] ?? 0,
+                phoneNum: data['phone']?.toString() ?? 'Unknown',
+                timeStamp: formattedTimestamp,
+                type: type,
+              );
+              if (type == '매장') {
+                storeWaitlist.add(entry);
+              } else {
+                takeoutWaitlist.add(entry);
+              }
             }
           });
         });
@@ -169,6 +172,74 @@ class _homeStaffState extends State<homeStaff> {
         SnackBar(content: Text('Error confirming arrival: $e')),
       );
     }
+  }
+
+  Future<void> _markAsNoShow(String nickname) async {
+    try {
+      String phoneNumber = await _getPhoneNumber(nickname);
+
+      final userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('nickname', isEqualTo: nickname)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        final userDoc = userQuery.docs.first;
+        final noShowCount = userDoc.data()['noShowCount'] ?? 0;
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userDoc.id)
+            .update({'noShowCount': noShowCount + 1});
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No-show count updated successfully.')),
+        );
+      }
+
+      // Send SMS notification
+      if (phoneNumber.isNotEmpty) {
+        NotificationService.sendSmsNotification('불참처리 되었습니다.', [phoneNumber]);
+      }
+    } catch (e) {
+      print('Error updating no-show count: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating no-show count: $e')),
+      );
+    }
+  }
+
+  Future<String> _getPhoneNumber(String nickname) async {
+    try {
+      // Check in users collection first
+      final userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('nickname', isEqualTo: nickname)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        final userDoc = userQuery.docs.first;
+        return userDoc.data()['phoneNum'] ?? '';
+      }
+
+      // If not found, check in non_members collection
+      final nonMemberQuery = await FirebaseFirestore.instance
+          .collection('non_members')
+          .where('nickname', isEqualTo: nickname)
+          .limit(1)
+          .get();
+
+      if (nonMemberQuery.docs.isNotEmpty) {
+        final nonMemberDoc = nonMemberQuery.docs.first;
+        return nonMemberDoc.data()['phoneNum'] ?? '';
+      }
+    } catch (e) {
+      print('Error fetching phone number: $e');
+    }
+
+    return ''; // Return an empty string if not found
   }
 
   Widget buildWaitlist(List<WaitlistEntry> waitlist) {
@@ -239,7 +310,11 @@ class _homeStaffState extends State<homeStaff> {
                             Radius.circular(10),
                           )),
                         ),
-                        onPressed: () => _confirmArrival(waitP.id),
+                        onPressed: () {
+                          _confirmArrival(waitP.id);
+                          NotificationService.sendSmsNotification(
+                              '도착확인되었습니다.', [waitP.phoneNum]);
+                        },
                         child: Text(
                           '도착확인',
                           style: TextStyle(
@@ -257,11 +332,11 @@ class _homeStaffState extends State<homeStaff> {
                             Radius.circular(10),
                           )),
                         ),
-                        onPressed: () =>
-                            FlutterLocalNotification.showNotification(
-                          '불참알림',
-                          '불참하여 불참횟수 증가합니다.',
-                        ),
+                        onPressed: () async {
+                          await _markAsNoShow(waitP.name);
+                          NotificationService.sendSmsNotification(
+                              '불참처리 되었습니다.', [waitP.phoneNum]);
+                        },
                         child: Text(
                           '불참',
                           style: TextStyle(
@@ -279,11 +354,10 @@ class _homeStaffState extends State<homeStaff> {
                             Radius.circular(10),
                           )),
                         ),
-                        onPressed: () =>
-                            FlutterLocalNotification.showNotification(
-                          '조리시작알림',
-                          '조리를 시작합니다. 주문내역이 null이라면 주문을 해주세요 라는 안내문 띄우기',
-                        ),
+                        onPressed: () {
+                          NotificationService.sendSmsNotification(
+                              '조리를 시작합니다.', [waitP.phoneNum]);
+                        },
                         child: Text(
                           '조리시작/주문',
                           style: TextStyle(
