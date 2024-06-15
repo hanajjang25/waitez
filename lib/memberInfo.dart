@@ -211,6 +211,9 @@ class _MemberInfoState extends State<memberInfo> {
                     if (value.length > 100) {
                       return '사유는 최대 100글자 이하이어야 합니다.';
                     }
+                    if (!_isValidKorean(value)) {
+                      return '한글만 입력이 가능합니다.';
+                    }
                     return null;
                   },
                 ),
@@ -236,6 +239,11 @@ class _MemberInfoState extends State<memberInfo> {
         );
       },
     );
+  }
+
+  bool _isValidKorean(String value) {
+    final koreanRegex = RegExp(r'^[가-힣\s]+$');
+    return koreanRegex.hasMatch(value);
   }
 
   @override
