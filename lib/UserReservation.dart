@@ -47,27 +47,49 @@ class _ReservationState extends State<Reservation> {
         }
       }
 
+      // Check for existing dine-in reservations for the current day
+      if (type == '매장') {
+        final now = DateTime.now();
+        final startOfDay = DateTime(now.year, now.month, now.day);
+        final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        final reservationQuery = await FirebaseFirestore.instance
+            .collection('reservations')
+            .where('nickname', isEqualTo: nickname)
+            .where('timestamp',
+                isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+            .where('timestamp',
+                isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
+            .where('type', isEqualTo: 1) // Dine-in type
+            .where('status', isEqualTo: 'confirmed')
+            .get();
+
+        if (reservationQuery.docs.isNotEmpty) {
+          showSnackBar(context, '매장은 최대 1개까지 예약이 가능합니다.');
+          return;
+        }
+      }
+
       final reservationData = {
         'nickname': nickname,
         'type': type == '매장' ? 1 : 2,
         'timestamp': Timestamp.now(),
         'numberOfPeople': type == '매장' ? numberOfPeople : null,
+        'status': 'confirmed', // 추가된 필드: 예약 상태를 "confirmed"로 설정
       };
 
-      // 기존 예약이 있는지 확인
-      final reservationQuery = await FirebaseFirestore.instance
+      final recentReservationQuery = await FirebaseFirestore.instance
           .collection('reservations')
           .where('nickname', isEqualTo: nickname)
           .orderBy('timestamp', descending: true)
           .limit(1)
           .get();
 
-      if (reservationQuery.docs.isNotEmpty) {
-        // 가장 최근 예약을 업데이트
-        final reservationDoc = reservationQuery.docs.first.reference;
-        await reservationDoc.update(reservationData);
+      if (recentReservationQuery.docs.isNotEmpty) {
+        final recentReservationDoc =
+            recentReservationQuery.docs.first.reference;
+        await recentReservationDoc.update(reservationData);
       } else {
-        // 새로운 예약 생성
+        // Save the reservation data to Firestore
         await FirebaseFirestore.instance
             .collection('reservations')
             .add(reservationData);
@@ -298,18 +320,7 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
               'altPhoneNum': _altPhoneController.text,
             });
 
-            // Retrieve reservationId
-            final reservationId = reservationDoc.id;
-
-            // Update the reservation info
-            await FirebaseFirestore.instance.collection('cart').add({
-              'reservationId': reservationId,
-              'nickname': _nicknameController.text,
-              'timestamp': Timestamp.now(),
-              // Add any other fields required in the cart document
-            });
-
-            print('Reservation updated and cart info saved successfully');
+            print('Reservation updated successfully');
           } else {
             print('No recent reservation found for this user.');
           }

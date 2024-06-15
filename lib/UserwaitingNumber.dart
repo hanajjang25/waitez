@@ -107,7 +107,7 @@ class _WaitingNumberState extends State<waitingNumber> {
             'restaurantName': restaurantSnapshot.exists
                 ? restaurantSnapshot['restaurantName'] ?? ''
                 : 'Unknown',
-            'numberOfPeople': doc['numberOfPeople'] ?? null,
+            'numberOfPeople': doc['numberOfPeople'] ?? null, // 기본값으로 0 설정
             'type': doc['type'] == 1 ? '매장' : '포장',
             'timestamp': timestamp,
           };
@@ -220,7 +220,7 @@ class _WaitingNumberState extends State<waitingNumber> {
     BuildContext context,
     String nickname,
     String restaurantName,
-    int? numberOfPeople,
+    int numberOfPeople,
     String type,
     DateTime timestamp,
     String reservationId, // Add reservationId parameter

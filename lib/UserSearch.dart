@@ -5,6 +5,8 @@ import 'reservationBottom.dart';
 import 'MemberFavorite.dart';
 import 'RestaurantInfo.dart';
 import 'googleMap.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class search extends StatefulWidget {
   const search({super.key});
@@ -95,15 +97,15 @@ class _SearchState extends State<search> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       if (user.isAnonymous) {
-        final nonMemberDoc = await FirebaseFirestore.instance
-            .collection('nonmembers')
-            .doc(user.uid)
+        final nonMemberQuery = await FirebaseFirestore.instance
+            .collection('non_members')
+            .where('uid', isEqualTo: user.uid)
             .get();
 
-        if (nonMemberDoc.exists) {
-          final nonMemberData = nonMemberDoc.data();
+        if (nonMemberQuery.docs.isNotEmpty) {
+          final nonMemberData = nonMemberQuery.docs.first.data();
           setState(() {
-            _currentLocation = nonMemberData?['location'] ?? 'Location not set';
+            _currentLocation = nonMemberData['location'] ?? 'Location not set';
           });
         } else {
           setState(() {
@@ -134,7 +136,22 @@ class _SearchState extends State<search> {
     }
   }
 
-  void _filterItems() {
+  Future<String?> _getCurrentAddress() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(position.latitude, position.longitude);
+      if (placemarks.isNotEmpty) {
+        return '${placemarks[0].locality}, ${placemarks[0].administrativeArea}';
+      }
+    } catch (e) {
+      print('Error getting current location: $e');
+    }
+    return null;
+  }
+
+  void _filterItems() async {
     List<SearchDetails> results = allItems;
 
     if (_searchKeyword != null && _searchKeyword!.isNotEmpty) {
@@ -160,13 +177,43 @@ class _SearchState extends State<search> {
             .toLowerCase()
             .contains(_locationKeyword!.toLowerCase());
       }).toList();
-
-      results.sort((a, b) => a.address.compareTo(b.address));
+    } else if (_currentLocation != null &&
+        _currentLocation!.isNotEmpty &&
+        _currentLocation != 'Location not found' &&
+        _currentLocation != 'Location not set' &&
+        _currentLocation != 'User not logged in') {
+      results = results.where((item) {
+        return item.address
+            .toLowerCase()
+            .contains(_currentLocation!.toLowerCase());
+      }).toList();
+    } else {
+      final currentAddress = await _getCurrentAddress();
+      if (currentAddress != null && currentAddress.isNotEmpty) {
+        results = results.where((item) {
+          return item.address
+              .toLowerCase()
+              .contains(currentAddress.toLowerCase());
+        }).toList();
+      }
     }
+
+    results.sort((a, b) =>
+        jaccardSimilarity(b.address, _currentLocation ?? _locationKeyword ?? '')
+            .compareTo(jaccardSimilarity(
+                a.address, _currentLocation ?? _locationKeyword ?? '')));
 
     setState(() {
       filteredItems = results;
     });
+  }
+
+  double jaccardSimilarity(String s1, String s2) {
+    final set1 = s1.toLowerCase().split('').toSet();
+    final set2 = s2.toLowerCase().split('').toSet();
+    final intersection = set1.intersection(set2).length;
+    final union = set1.union(set2).length;
+    return intersection / union;
   }
 
   void _updateLocation(String location) {
@@ -331,8 +378,8 @@ class _SearchState extends State<search> {
                               child: ListTile(
                                 leading: Image.network(
                                   item.photoUrl,
-                                  width: 50,
-                                  height: 50,
+                                  width: 100,
+                                  height: 100,
                                   fit: BoxFit.cover,
                                 ),
                                 title: Text(item.name),
@@ -342,7 +389,7 @@ class _SearchState extends State<search> {
                                     Text("Address: ${item.address}"),
                                     Text("Description: ${item.description}"),
                                     Text(
-                                        "Business Hours: ${item.businessHours}"),
+                                        "Business Hours: \n ${item.businessHours}"),
                                     Text(
                                         "Menu: ${item.menuItems.map((menuItem) => menuItem['menuName']).join(', ')}"),
                                   ],

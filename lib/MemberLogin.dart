@@ -52,7 +52,7 @@ class _LoginState extends State<login> {
           Timestamp lastLogin = userData['lastLogin'] ?? Timestamp.now();
 
           // Check if noShowCount % 4 == 0 and if lastLogin is within the last week
-          if (noShowCount % 4 == 0) {
+          if (noShowCount % 4 == 0 && noShowCount != 0) {
             DateTime lastLoginDate = lastLogin.toDate();
             DateTime now = DateTime.now();
             if (now.difference(lastLoginDate).inDays < 7) {

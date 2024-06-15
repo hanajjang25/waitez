@@ -44,11 +44,14 @@ class _RegRestaurantState extends State<regRestaurant> {
           .collection('users')
           .doc(user.uid)
           .get();
-      setState(() {
-        _nickname = userDoc['nickname'];
-        _location = userDoc['location'];
-        _userRegistrationNumber = userDoc['resNum'];
-      });
+      if (userDoc.exists && userDoc.data() != null) {
+        setState(() {
+          var data = userDoc.data() as Map<String, dynamic>;
+          _nickname = data['nickname'] ?? '';
+          _location = data.containsKey('location') ? data['location'] : '';
+          _userRegistrationNumber = data['resNum'] ?? '';
+        });
+      }
     }
   }
 

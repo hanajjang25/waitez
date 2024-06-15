@@ -20,6 +20,7 @@ class RestaurantInfo extends StatefulWidget {
 class _RestaurantInfoState extends State<RestaurantInfo> {
   bool isFavorite = false;
   bool isOpen = false;
+  bool isWithinBusinessHours = false; // Added
   Map<String, dynamic>? restaurantData;
   List<Map<String, dynamic>> menuItems = [];
   Timer? _timer;
@@ -29,6 +30,9 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
     super.initState();
     _fetchRestaurantDetails();
     _fetchMenuItems();
+    _timer = Timer.periodic(Duration(minutes: 1), (timer) {
+      _checkBusinessHours();
+    }); // Added Timer to call _checkBusinessHours periodically
   }
 
   @override
@@ -46,6 +50,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
       if (doc.exists) {
         setState(() {
           restaurantData = doc.data() as Map<String, dynamic>?;
+          _checkBusinessHours(); // Check business hours after fetching data
         });
       } else {
         print('Restaurant not found');
@@ -154,6 +159,44 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
       print('Error saving reservation: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving reservation: $e')),
+      );
+    }
+  }
+
+  // Added method to check business hours
+  void _checkBusinessHours() {
+    if (restaurantData == null) return;
+
+    String businessHours = restaurantData!['businessHours'] ?? '';
+    if (businessHours.isEmpty) return;
+
+    List<String> hours = businessHours.split(' ~');
+    if (hours.length != 2) return;
+
+    try {
+      DateTime now = DateTime.now();
+      DateFormat format = DateFormat('hh:mm a');
+      DateTime openTime = format.parse(hours[0].trim());
+      DateTime closeTime = format.parse(hours[1].trim());
+
+      openTime = DateTime(
+          now.year, now.month, now.day, openTime.hour, openTime.minute);
+      closeTime = DateTime(
+          now.year, now.month, now.day, closeTime.hour, closeTime.minute);
+
+      if (now.isAfter(openTime) && now.isBefore(closeTime)) {
+        setState(() {
+          isWithinBusinessHours = true;
+        });
+      } else {
+        setState(() {
+          isWithinBusinessHours = false;
+        });
+      }
+    } catch (e) {
+      print('Error parsing business hours: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error parsing business hours: $e')),
       );
     }
   }
@@ -281,11 +324,15 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _saveReservation, // 예약하기 버튼 클릭 시 예약 정보 저장 및 화면 전환
+                  onPressed: isWithinBusinessHours
+                      ? _saveReservation
+                      : null, // 예약하기 버튼 클릭 시 예약 정보 저장 및 화면 전환
                   child: Text('예약하기'),
                   style: ButtonStyle(
-                    backgroundColor:
-                        MaterialStateProperty.all(Color(0xFF1A94FF)),
+                    backgroundColor: MaterialStateProperty.all(
+                        isWithinBusinessHours
+                            ? Color(0xFF1A94FF)
+                            : Colors.grey),
                     foregroundColor: MaterialStateProperty.all(Colors.white),
                     minimumSize: MaterialStateProperty.all(Size(200, 50)),
                     padding: MaterialStateProperty.all(

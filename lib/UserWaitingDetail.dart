@@ -29,7 +29,7 @@ class _waitingDetailState extends State<waitingDetail> {
   List<Map<String, dynamic>> orderItems = [];
   int totalAmount = 0;
   LatLng? restaurantLocation; // Add a variable to store the restaurant location
-  bool isTakeout = false; // Add a flag for takeout
+  int isTakeout = 0; // Add a flag for takeout
   int averageWaitTime = 0; // Add a variable for average wait time
 
   static const CameraPosition initialCameraPosition = CameraPosition(
@@ -42,6 +42,7 @@ class _waitingDetailState extends State<waitingDetail> {
     super.initState();
     _fetchRestaurantDetails();
     _fetchOrderDetails();
+    _fetchReservationType(); // Fetch reservation type
   }
 
   Future<void> _fetchRestaurantDetails() async {
@@ -84,66 +85,71 @@ class _waitingDetailState extends State<waitingDetail> {
 
   Future<void> _fetchOrderDetails() async {
     try {
-      // Fetch restaurant ID by name
-      var restaurantQuery = await FirebaseFirestore.instance
-          .collection('restaurants')
-          .where('restaurantName', isEqualTo: widget.restaurantName)
-          .limit(1)
+      // Fetch order details from Firestore
+      var orderSnapshot = await FirebaseFirestore.instance
+          .collection('reservations')
+          .doc(widget.reservationId)
+          .collection('cart')
           .get();
 
-      if (restaurantQuery.docs.isNotEmpty) {
-        var restaurantId = restaurantQuery.docs.first.id;
+      if (orderSnapshot.docs.isNotEmpty) {
+        List<Map<String, dynamic>> items = [];
+        int total = 0;
 
-        // Fetch order details from Firestore
-        var orderSnapshot = await FirebaseFirestore.instance
-            .collection('cart')
-            .where('restaurantId', isEqualTo: restaurantId)
-            .where('reservationId', isEqualTo: widget.reservationId)
-            .get();
+        for (var doc in orderSnapshot.docs) {
+          var item = doc.data();
+          var menuItem = item['menuItem'];
+          int price = 0;
+          int quantity = 0;
 
-        if (orderSnapshot.docs.isNotEmpty) {
-          List<Map<String, dynamic>> items = [];
-          int total = 0;
-
-          for (var doc in orderSnapshot.docs) {
-            var item = doc.data();
-            var menuItem = item['menuItem'];
-            int price = 0;
-            int quantity = 0;
-
-            if (menuItem != null) {
-              if (menuItem['price'] != null) {
-                price = menuItem['price'] is int
-                    ? menuItem['price']
-                    : int.tryParse(menuItem['price'].toString()) ?? 0;
-              }
-
-              if (menuItem['quantity'] != null) {
-                quantity = menuItem['quantity'] is int
-                    ? menuItem['quantity']
-                    : int.tryParse(menuItem['quantity'].toString()) ?? 0;
-              }
-
-              items.add({
-                'name': menuItem['menuName'] ?? 'Unknown',
-                'price': price,
-                'quantity': quantity,
-              });
-
-              total += price * quantity;
+          if (menuItem != null) {
+            if (menuItem['price'] != null) {
+              price = menuItem['price'] is int
+                  ? menuItem['price']
+                  : int.tryParse(menuItem['price'].toString()) ?? 0;
             }
-          }
 
-          setState(() {
-            orderItems = items;
-            totalAmount = total;
-            isTakeout =
-                orderSnapshot.docs.first['type'] == 2; // Check if takeout
-          });
+            if (item['quantity'] != null) {
+              quantity = item['quantity'] is int
+                  ? item['quantity']
+                  : int.tryParse(item['quantity'].toString()) ?? 0;
+            }
+
+            items.add({
+              'name': menuItem['menuName'] ?? 'Unknown',
+              'price': price,
+              'quantity': quantity,
+            });
+
+            total += price * quantity;
+          }
         }
+
+        setState(() {
+          orderItems = items;
+          totalAmount = total;
+        });
       }
     } catch (e) {
       print('Error fetching order details: $e');
+    }
+  }
+
+  Future<void> _fetchReservationType() async {
+    try {
+      // Fetch reservation type from Firestore
+      var reservationSnapshot = await FirebaseFirestore.instance
+          .collection('reservations')
+          .doc(widget.reservationId)
+          .get();
+
+      if (reservationSnapshot.exists) {
+        setState(() {
+          isTakeout = reservationSnapshot.data()!['type'];
+        });
+      }
+    } catch (e) {
+      print('Error fetching reservation type: $e');
     }
   }
 
@@ -175,8 +181,8 @@ class _waitingDetailState extends State<waitingDetail> {
                     if (value == null || value.isEmpty) {
                       return '사유를 입력해주세요.';
                     }
-                    if (value.length < 2) {
-                      return '사유는 최소 2글자 이상이어야 합니다.';
+                    if (value.length < 3) {
+                      return '사유는 최소 3글자 이상이어야 합니다.';
                     }
                     if (value.length > 100) {
                       return '사유는 최대 100글자 이하이어야 합니다.';
@@ -205,15 +211,6 @@ class _waitingDetailState extends State<waitingDetail> {
                         .collection('reservations')
                         .doc(widget.reservationId)
                         .delete();
-
-                    // Firestore에 예약취소 사유 저장 (예: 'cancellations' 컬렉션에 추가)
-                    await FirebaseFirestore.instance
-                        .collection('cancellations')
-                        .add({
-                      'reservationId': widget.reservationId,
-                      'reason': reason,
-                      'timestamp': Timestamp.now(),
-                    });
 
                     FlutterLocalNotification.showNotification(
                       '예약취소',
@@ -325,14 +322,14 @@ class _waitingDetailState extends State<waitingDetail> {
                     foregroundColor: Colors.blue,
                     side: BorderSide(color: Colors.blue),
                   ),
-                  onPressed: isTakeout
+                  onPressed: isTakeout == 2
                       ? null
                       : () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) =>
-                                  Cart(), // Pass reservationId if needed
+                                  cart(), // Pass reservationId if needed
                             ),
                           );
                         },

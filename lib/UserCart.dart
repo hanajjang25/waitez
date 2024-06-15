@@ -2,28 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class Cart extends StatefulWidget {
+class cart extends StatefulWidget {
   @override
-  _CartState createState() => _CartState();
+  _CartPageState createState() => _CartPageState();
 }
 
-class _CartState extends State<Cart> {
+class _CartPageState extends State<cart> {
   List<Map<String, dynamic>> cartItems = [];
+  String nickname = '';
   String reservationId = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchUserAndReservationId();
+    _fetchUserAndCartItems();
   }
 
-  Future<void> _fetchUserAndReservationId() async {
+  Future<void> _fetchUserAndCartItems() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        String? nickname = await _fetchNickname(user.email!);
-        if (nickname != null) {
-          await _fetchLatestReservationId(nickname);
+        String? fetchedNickname = await _fetchNickname(user);
+        if (fetchedNickname != null) {
+          setState(() {
+            nickname = fetchedNickname;
+          });
+          await _fetchReservationIdAndCartItems(fetchedNickname);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('No user found with this email.')),
@@ -31,82 +35,91 @@ class _CartState extends State<Cart> {
         }
       }
     } catch (e) {
-      print('Error fetching user or reservation ID: $e');
+      print('Error fetching user or cart items: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching user or reservation ID: $e')),
+        SnackBar(content: Text('Error fetching user or cart items: $e')),
       );
     }
   }
 
-  Future<String?> _fetchNickname(String email) async {
-    // users 컬렉션에서 사용자 정보를 찾음
-    final userQuery = await FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .limit(1)
-        .get();
+  Future<String?> _fetchNickname(User user) async {
+    String? nickname;
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-    if (userQuery.docs.isNotEmpty) {
-      return userQuery.docs.first['nickname'];
-    } else {
-      // non_member 컬렉션에서 사용자 정보를 찾음
-      final nonMemberQuery = await FirebaseFirestore.instance
-          .collection('non_member')
-          .where('email', isEqualTo: email)
+      if (userDoc.exists) {
+        nickname = userDoc['nickname'];
+      }
+    } catch (e) {
+      print('Error fetching user nickname: $e');
+    }
+
+    if (nickname == null) {
+      try {
+        final nonMemberQuery = await FirebaseFirestore.instance
+            .collection('non_members')
+            .where('uid', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+
+        if (nonMemberQuery.docs.isNotEmpty) {
+          nickname = nonMemberQuery.docs.first['nickname'];
+        }
+      } catch (e) {
+        print('Error fetching non-member nickname: $e');
+      }
+    }
+
+    return nickname;
+  }
+
+  Future<void> _fetchReservationIdAndCartItems(String nickname) async {
+    try {
+      final reservationQuery = await FirebaseFirestore.instance
+          .collection('reservations')
+          .where('nickname', isEqualTo: nickname)
+          .orderBy('timestamp', descending: true)
           .limit(1)
           .get();
 
-      if (nonMemberQuery.docs.isNotEmpty) {
-        return nonMemberQuery.docs.first['nickname'];
+      if (reservationQuery.docs.isNotEmpty) {
+        setState(() {
+          reservationId = reservationQuery.docs.first.id;
+        });
+        _fetchCartItems(reservationId);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No recent reservation found.')),
+        );
       }
-    }
-    return null;
-  }
-
-  Future<void> _fetchLatestReservationId(String nickname) async {
-    final reservationQuery = await FirebaseFirestore.instance
-        .collection('reservations')
-        .where('nickname', isEqualTo: nickname)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-
-    if (reservationQuery.docs.isNotEmpty) {
-      final reservationDoc = reservationQuery.docs.first;
-      setState(() {
-        reservationId = reservationDoc.id;
-      });
-      _fetchCartItems();
-    } else {
+    } catch (e) {
+      print('Error fetching reservation ID: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No recent reservation found.')),
+        SnackBar(content: Text('Error fetching reservation ID: $e')),
       );
     }
   }
 
-  Future<void> _fetchCartItems() async {
-    if (reservationId.isNotEmpty) {
-      try {
-        final cartQuery = await FirebaseFirestore.instance
-            .collection('cart')
-            .where('reservationId', isEqualTo: reservationId)
-            .get();
+  Future<void> _fetchCartItems(String reservationId) async {
+    try {
+      final cartQuery = await FirebaseFirestore.instance
+          .collection('reservations')
+          .doc(reservationId)
+          .collection('cart')
+          .get();
 
-        setState(() {
-          cartItems = cartQuery.docs
-              .map((doc) =>
-                  {'id': doc.id, ...doc.data() as Map<String, dynamic>})
-              .toList();
-        });
-      } catch (e) {
-        print('Error fetching cart items: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching cart items: $e')),
-        );
-      }
-    } else {
+      setState(() {
+        cartItems = cartQuery.docs
+            .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+            .toList();
+      });
+    } catch (e) {
+      print('Error fetching cart items: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No reservation found to fetch cart items.')),
+        SnackBar(content: Text('Error fetching cart items: $e')),
       );
     }
   }
@@ -114,6 +127,8 @@ class _CartState extends State<Cart> {
   Future<void> removeItem(int index) async {
     try {
       await FirebaseFirestore.instance
+          .collection('reservations')
+          .doc(reservationId)
           .collection('cart')
           .doc(cartItems[index]['id'])
           .delete();
@@ -133,6 +148,8 @@ class _CartState extends State<Cart> {
     if (quantity > 0) {
       try {
         await FirebaseFirestore.instance
+            .collection('reservations')
+            .doc(reservationId)
             .collection('cart')
             .doc(cartItems[index]['id'])
             .update({'quantity': quantity});

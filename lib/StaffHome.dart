@@ -9,6 +9,7 @@ class WaitlistEntry {
   final String name;
   final int people;
   final String phoneNum;
+  final String? altPhoneNum;
   final String timeStamp;
   final String type;
 
@@ -17,6 +18,7 @@ class WaitlistEntry {
     required this.name,
     required this.people,
     required this.phoneNum,
+    this.altPhoneNum,
     required this.timeStamp,
     required this.type,
   });
@@ -94,8 +96,7 @@ class _homeStaffState extends State<homeStaff> {
         final reservationQuery = await FirebaseFirestore.instance
             .collection('reservations')
             .where('restaurantId', isEqualTo: restaurantId)
-            .where('status', isEqualTo: 'confirmed')
-            .get();
+            .where('status', whereIn: ['confirmed', 'arrived']).get();
 
         final today = DateTime.now().toLocal();
         final formattedToday = "${today.year}-${today.month}-${today.day}";
@@ -118,6 +119,7 @@ class _homeStaffState extends State<homeStaff> {
                 name: data['nickname']?.toString() ?? 'Unknown',
                 people: data['numberOfPeople'] ?? 0,
                 phoneNum: data['phone']?.toString() ?? 'Unknown',
+                altPhoneNum: data['altPhoneNum']?.toString(),
                 timeStamp: formattedTimestamp,
                 type: type,
               );
@@ -156,7 +158,7 @@ class _homeStaffState extends State<homeStaff> {
     }
   }
 
-  Future<void> _confirmArrival(String id) async {
+  Future<void> _confirmArrival(String id, List<String> phoneNumbers) async {
     try {
       await FirebaseFirestore.instance
           .collection('reservations')
@@ -166,6 +168,7 @@ class _homeStaffState extends State<homeStaff> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Arrival confirmed successfully.')),
       );
+      NotificationService.sendSmsNotification('도착확인되었습니다.', phoneNumbers);
     } catch (e) {
       print('Error confirming arrival: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -174,10 +177,8 @@ class _homeStaffState extends State<homeStaff> {
     }
   }
 
-  Future<void> _markAsNoShow(String nickname) async {
+  Future<void> _markAsNoShow(String nickname, List<String> phoneNumbers) async {
     try {
-      String phoneNumber = await _getPhoneNumber(nickname);
-
       final userQuery = await FirebaseFirestore.instance
           .collection('users')
           .where('nickname', isEqualTo: nickname)
@@ -199,9 +200,7 @@ class _homeStaffState extends State<homeStaff> {
       }
 
       // Send SMS notification
-      if (phoneNumber.isNotEmpty) {
-        NotificationService.sendSmsNotification('불참처리 되었습니다.', [phoneNumber]);
-      }
+      NotificationService.sendSmsNotification('불참처리 되었습니다.', phoneNumbers);
     } catch (e) {
       print('Error updating no-show count: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -210,36 +209,40 @@ class _homeStaffState extends State<homeStaff> {
     }
   }
 
-  Future<String> _getPhoneNumber(String nickname) async {
+  Future<void> _startCooking(String id, List<String> phoneNumbers) async {
     try {
-      // Check in users collection first
-      final userQuery = await FirebaseFirestore.instance
-          .collection('users')
-          .where('nickname', isEqualTo: nickname)
-          .limit(1)
+      // Check if cart items exist for the reservation
+      final cartQuery = await FirebaseFirestore.instance
+          .collection('reservations')
+          .doc(id)
+          .collection('cart')
           .get();
 
-      if (userQuery.docs.isNotEmpty) {
-        final userDoc = userQuery.docs.first;
-        return userDoc.data()['phoneNum'] ?? '';
-      }
+      if (cartQuery.docs.isEmpty) {
+        NotificationService.sendSmsNotification('직원에게 주문을 해주세요.', phoneNumbers);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('장바구니에 항목이 없습니다. 직원에게 주문을 해주세요.')),
+        );
+      } else {
+        // Update reservation status to "cooking"
+        await FirebaseFirestore.instance
+            .collection('reservations')
+            .doc(id)
+            .update({'status': 'cooking'});
+        _fetchConfirmedReservations();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('조리를 시작합니다.')),
+        );
 
-      // If not found, check in non_members collection
-      final nonMemberQuery = await FirebaseFirestore.instance
-          .collection('non_members')
-          .where('nickname', isEqualTo: nickname)
-          .limit(1)
-          .get();
-
-      if (nonMemberQuery.docs.isNotEmpty) {
-        final nonMemberDoc = nonMemberQuery.docs.first;
-        return nonMemberDoc.data()['phoneNum'] ?? '';
+        // Send SMS notification
+        NotificationService.sendSmsNotification('조리를 시작합니다.', phoneNumbers);
       }
     } catch (e) {
-      print('Error fetching phone number: $e');
+      print('Error starting cooking: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error starting cooking: $e')),
+      );
     }
-
-    return ''; // Return an empty string if not found
   }
 
   Widget buildWaitlist(List<WaitlistEntry> waitlist) {
@@ -250,6 +253,13 @@ class _homeStaffState extends State<homeStaff> {
     }
     return Column(
       children: waitlist.map((waitP) {
+        List<String> phoneNumbers = [];
+        if (waitP.phoneNum.isNotEmpty) {
+          phoneNumbers.add(waitP.phoneNum);
+        }
+        if (waitP.altPhoneNum != null && waitP.altPhoneNum!.isNotEmpty) {
+          phoneNumbers.add(waitP.altPhoneNum!);
+        }
         return Padding(
           padding: const EdgeInsets.all(8.0),
           child: Card(
@@ -280,6 +290,9 @@ class _homeStaffState extends State<homeStaff> {
                     ],
                   ),
                   Text('전화번호: ${waitP.phoneNum}'),
+                  if (waitP.altPhoneNum != null &&
+                      waitP.altPhoneNum!.isNotEmpty)
+                    Text('보조 전화번호: ${waitP.altPhoneNum}'),
                   SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -311,9 +324,7 @@ class _homeStaffState extends State<homeStaff> {
                           )),
                         ),
                         onPressed: () {
-                          _confirmArrival(waitP.id);
-                          NotificationService.sendSmsNotification(
-                              '도착확인되었습니다.', [waitP.phoneNum]);
+                          _confirmArrival(waitP.id, phoneNumbers);
                         },
                         child: Text(
                           '도착확인',
@@ -333,9 +344,7 @@ class _homeStaffState extends State<homeStaff> {
                           )),
                         ),
                         onPressed: () async {
-                          await _markAsNoShow(waitP.name);
-                          NotificationService.sendSmsNotification(
-                              '불참처리 되었습니다.', [waitP.phoneNum]);
+                          await _markAsNoShow(waitP.name, phoneNumbers);
                         },
                         child: Text(
                           '불참',
@@ -355,8 +364,7 @@ class _homeStaffState extends State<homeStaff> {
                           )),
                         ),
                         onPressed: () {
-                          NotificationService.sendSmsNotification(
-                              '조리를 시작합니다.', [waitP.phoneNum]);
+                          _startCooking(waitP.id, phoneNumbers);
                         },
                         child: Text(
                           '조리시작/주문',

@@ -61,15 +61,35 @@ class _MemberInfoState extends State<memberInfo> {
     User? user = _auth.currentUser;
     if (user != null) {
       try {
-        // Firestore에서 사용자 문서 삭제
-        await _firestore.collection('users').doc(user.uid).delete();
+        String userEmail = user.email!;
         // Firebase Authentication에서 사용자 삭제
         await user.delete();
+        // Firestore에서 이메일로 사용자 문서 삭제
+        QuerySnapshot userSnapshot = await _firestore
+            .collection('users')
+            .where('email', isEqualTo: userEmail)
+            .get();
+        for (var doc in userSnapshot.docs) {
+          await _firestore.collection('users').doc(doc.id).delete();
+        }
+        FlutterLocalNotification.showNotification(
+          '회원탈퇴',
+          '회원탈퇴가 성공적으로 처리되었습니다.',
+        );
         print('User account deleted');
         // 회원탈퇴 후 로그인 화면으로 이동
         Navigator.of(context).pushReplacementNamed('/login');
       } catch (e) {
         print('Failed to delete user account: $e');
+        if (e is FirebaseAuthException && e.code == 'requires-recent-login') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('보안을 위해 최근 로그인이 필요합니다. 다시 로그인 후 시도해주세요.')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('회원탈퇴 중 오류가 발생했습니다. 다시 시도해주세요.')),
+          );
+        }
       }
     }
   }
@@ -138,6 +158,31 @@ class _MemberInfoState extends State<memberInfo> {
     return RegExp(r'^010-\d{4}-\d{4}$').hasMatch(phone);
   }
 
+  Future<void> _checkRestaurantBeforeDelete() async {
+    User? user = _auth.currentUser;
+    if (user != null && _businessNumberController.text.isNotEmpty) {
+      QuerySnapshot restaurantSnapshot = await _firestore
+          .collection('restaurants')
+          .where('registrationNumber',
+              isEqualTo: _businessNumberController.text)
+          .get();
+
+      if (restaurantSnapshot.docs.isNotEmpty) {
+        var restaurantData =
+            restaurantSnapshot.docs.first.data() as Map<String, dynamic>;
+        if (restaurantData['isDeleted'] == false) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('음식점 삭제 후 회원탈퇴를 진행해주세요.')),
+          );
+          return;
+        }
+      }
+    }
+
+    // 사용자가 레스토랑을 소유하고 있지 않거나, isDeleted가 true인 경우에만 회원탈퇴 진행
+    _deleteUserAccount();
+  }
+
   void showDeleteAccountDialog() {
     final TextEditingController reasonController = TextEditingController();
     final _formKey = GlobalKey<FormState>();
@@ -182,43 +227,7 @@ class _MemberInfoState extends State<memberInfo> {
             TextButton(
               onPressed: () async {
                 if (_formKey.currentState!.validate()) {
-                  String reason = reasonController.text;
-                  User? user = FirebaseAuth.instance.currentUser;
-
-                  if (user != null) {
-                    try {
-                      // 회원탈퇴 사유를 Firestore에 저장 (예: 'deletion_reasons' 컬렉션에 추가)
-                      await FirebaseFirestore.instance
-                          .collection('deletion_reasons')
-                          .add({
-                        'userId': user.uid,
-                        'reason': reason,
-                        'timestamp': Timestamp.now(),
-                      });
-
-                      // 사용자 계정 삭제
-                      await user.delete();
-
-                      FlutterLocalNotification.showNotification(
-                        '회원탈퇴',
-                        '회원탈퇴가 성공적으로 처리되었습니다.',
-                      );
-
-                      Navigator.of(context).pop();
-                      Navigator.pushNamedAndRemoveUntil(
-                          context, '/login', (route) => false);
-                    } catch (e) {
-                      print('Error deleting user account: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text('회원탈퇴 중 오류가 발생했습니다. 다시 시도해주세요.')),
-                      );
-                    }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('로그인된 사용자가 없습니다.')),
-                    );
-                  }
+                  _checkRestaurantBeforeDelete();
                 }
               },
               child: Text('확인'),
