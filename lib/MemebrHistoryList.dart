@@ -243,6 +243,7 @@ class ReservationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
+        tileColor: Colors.blue[50],
         leading: SizedBox(
           width: 50, // 적절한 크기로 제한
           child: imageAsset.startsWith('http')
@@ -252,6 +253,13 @@ class ReservationCard extends StatelessWidget {
         title: Text(restaurantName),
         subtitle: Text(date),
         trailing: ElevatedButton(
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.blue[50],
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(
+              Radius.circular(10),
+            )),
+          ),
           onPressed: onPressed,
           child: Text(buttonText),
         ),

@@ -23,6 +23,7 @@ class SearchDetails {
   final String businessHours;
   final String photoUrl;
   late List<Map<String, dynamic>> menuItems;
+  double? distance;
 
   SearchDetails({
     required this.id,
@@ -32,6 +33,7 @@ class SearchDetails {
     required this.businessHours,
     required this.photoUrl,
     required this.menuItems,
+    this.distance,
   });
 
   factory SearchDetails.fromFirestore(DocumentSnapshot doc) {
@@ -55,13 +57,14 @@ class _SearchState extends State<search> {
   List<SearchDetails> filteredItems = [];
   String? _locationKeyword;
   String? _searchKeyword;
-  String? _currentLocation;
+  String? _currentAddress;
+  Position? _currentPosition;
 
   @override
   void initState() {
     super.initState();
     _fetchAllItems();
-    _fetchUserLocation();
+    _fetchUserLocationFromDatabase();
   }
 
   Future<void> _fetchAllItems() async {
@@ -81,74 +84,63 @@ class _SearchState extends State<search> {
             .toList();
       }
 
-      setState(() {
-        allItems = results;
-        filteredItems = results;
-      });
+      if (mounted) {
+        setState(() {
+          allItems = results;
+          filteredItems = results;
+          _calculateDistances();
+        });
+      }
     } catch (e) {
       print('Error fetching data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('데이터를 불러오는 중 오류가 발생했습니다.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('데이터를 불러오는 중 오류가 발생했습니다.')),
+        );
+      }
     }
   }
 
-  Future<void> _fetchUserLocation() async {
+  Future<void> _fetchUserLocationFromDatabase() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      if (user.isAnonymous) {
-        final nonMemberQuery = await FirebaseFirestore.instance
-            .collection('non_members')
-            .where('uid', isEqualTo: user.uid)
-            .get();
-
-        if (nonMemberQuery.docs.isNotEmpty) {
-          final nonMemberData = nonMemberQuery.docs.first.data();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        if (mounted) {
           setState(() {
-            _currentLocation = nonMemberData['location'] ?? 'Location not set';
-          });
-        } else {
-          setState(() {
-            _currentLocation = 'Location not found';
+            _currentAddress = userData['location'];
           });
         }
-      } else {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-
-        if (userDoc.exists) {
-          final userData = userDoc.data();
-          setState(() {
-            _currentLocation = userData?['location'] ?? 'Location not set';
-          });
-        } else {
-          setState(() {
-            _currentLocation = 'Location not found';
-          });
-        }
+        _calculateDistances();
       }
-    } else {
-      setState(() {
-        _currentLocation = 'User not logged in';
-      });
     }
   }
 
-  Future<String?> _getCurrentAddress() async {
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-      List<Placemark> placemarks =
-          await placemarkFromCoordinates(position.latitude, position.longitude);
-      if (placemarks.isNotEmpty) {
-        return '${placemarks[0].locality}, ${placemarks[0].administrativeArea}';
+  Future<void> _calculateDistances() async {
+    if (_currentAddress == null) return;
+
+    for (var item in allItems) {
+      List<Location> locations = await locationFromAddress(item.address);
+      if (locations.isNotEmpty) {
+        List<Location> userLocations =
+            await locationFromAddress(_currentAddress!);
+        if (userLocations.isNotEmpty) {
+          double distanceInMeters = Geolocator.distanceBetween(
+            userLocations[0].latitude,
+            userLocations[0].longitude,
+            locations[0].latitude,
+            locations[0].longitude,
+          );
+          item.distance = distanceInMeters / 1000; // Convert to kilometers
+        }
       }
-    } catch (e) {
-      print('Error getting current location: $e');
     }
-    return null;
+
+    _filterItems();
   }
 
   void _filterItems() async {
@@ -177,43 +169,17 @@ class _SearchState extends State<search> {
             .toLowerCase()
             .contains(_locationKeyword!.toLowerCase());
       }).toList();
-    } else if (_currentLocation != null &&
-        _currentLocation!.isNotEmpty &&
-        _currentLocation != 'Location not found' &&
-        _currentLocation != 'Location not set' &&
-        _currentLocation != 'User not logged in') {
-      results = results.where((item) {
-        return item.address
-            .toLowerCase()
-            .contains(_currentLocation!.toLowerCase());
-      }).toList();
-    } else {
-      final currentAddress = await _getCurrentAddress();
-      if (currentAddress != null && currentAddress.isNotEmpty) {
-        results = results.where((item) {
-          return item.address
-              .toLowerCase()
-              .contains(currentAddress.toLowerCase());
-        }).toList();
-      }
+    } else if (_currentAddress != null) {
+      results = results.where((item) => item.distance != null).toList()
+        ..sort((a, b) => (a.distance ?? double.infinity)
+            .compareTo(b.distance ?? double.infinity));
     }
 
-    results.sort((a, b) =>
-        jaccardSimilarity(b.address, _currentLocation ?? _locationKeyword ?? '')
-            .compareTo(jaccardSimilarity(
-                a.address, _currentLocation ?? _locationKeyword ?? '')));
-
-    setState(() {
-      filteredItems = results;
-    });
-  }
-
-  double jaccardSimilarity(String s1, String s2) {
-    final set1 = s1.toLowerCase().split('').toSet();
-    final set2 = s2.toLowerCase().split('').toSet();
-    final intersection = set1.intersection(set2).length;
-    final union = set1.union(set2).length;
-    return intersection / union;
+    if (mounted) {
+      setState(() {
+        filteredItems = results;
+      });
+    }
   }
 
   void _updateLocation(String location) {
@@ -258,7 +224,9 @@ class _SearchState extends State<search> {
         );
       }
 
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -281,7 +249,7 @@ class _SearchState extends State<search> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 80,
+        toolbarHeight: 70,
         title: Text(
           '검색',
           style: TextStyle(
@@ -298,7 +266,7 @@ class _SearchState extends State<search> {
         foregroundColor: Colors.black,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -330,11 +298,11 @@ class _SearchState extends State<search> {
                 ),
               ),
             ]),
-            if (_currentLocation != null)
+            if (_currentAddress != null)
               Padding(
-                padding: const EdgeInsets.only(left: 38.0),
+                padding: const EdgeInsets.only(left: 20.0),
                 child: Text(
-                  _currentLocation!,
+                  '$_currentAddress',
                   style: TextStyle(
                     color: Colors.black,
                   ),
@@ -374,24 +342,89 @@ class _SearchState extends State<search> {
 
                             return Card(
                               color: Colors.blue[50],
-                              margin: EdgeInsets.symmetric(vertical: 8),
+                              margin: EdgeInsets.symmetric(vertical: 10),
                               child: ListTile(
                                 leading: Image.network(
                                   item.photoUrl,
-                                  width: 100,
-                                  height: 100,
+                                  width: 80,
+                                  height: 150,
                                   fit: BoxFit.cover,
                                 ),
-                                title: Text(item.name),
+                                title: Text(
+                                  item.name,
+                                  style: TextStyle(
+                                    color: Color(0xFF1C1C21),
+                                    fontSize: 15,
+                                    fontFamily: 'Epilogue',
+                                    fontWeight: FontWeight.w700,
+                                    height: 2,
+                                    letterSpacing: -0.27,
+                                  ),
+                                ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("Address: ${item.address}"),
-                                    Text("Description: ${item.description}"),
-                                    Text(
-                                        "Business Hours: \n ${item.businessHours}"),
-                                    Text(
-                                        "Menu: ${item.menuItems.map((menuItem) => menuItem['menuName']).join(', ')}"),
+                                    RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(color: Colors.black),
+                                        children: [
+                                          TextSpan(
+                                            text: "주소: \n",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          TextSpan(text: '${item.address}'),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(height: 5),
+                                    RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(color: Colors.black),
+                                        children: [
+                                          TextSpan(
+                                            text: "영업시간: \n",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          TextSpan(
+                                              text: '${item.businessHours}'),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(height: 5),
+                                    RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(color: Colors.black),
+                                        children: [
+                                          TextSpan(
+                                            text: "메뉴: ",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          TextSpan(
+                                              text:
+                                                  '${item.menuItems.map((menuItem) => menuItem['menuName']).join(', ')}'),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(height: 5),
+                                    if (item.distance != null)
+                                      RichText(
+                                        text: TextSpan(
+                                          style: TextStyle(color: Colors.black),
+                                          children: [
+                                            TextSpan(
+                                              text: "나와의 거리: ",
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                            TextSpan(
+                                                text:
+                                                    '${item.distance!.toStringAsFixed(2)} km'),
+                                          ],
+                                        ),
+                                      ),
                                   ],
                                 ),
                                 trailing: IconButton(

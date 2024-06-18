@@ -145,8 +145,7 @@ class _ReservationState extends State<Reservation> {
               },
               child: Text('매장'),
               style: ButtonStyle(
-                backgroundColor:
-                    MaterialStateProperty.all(Colors.lightBlueAccent),
+                backgroundColor: MaterialStateProperty.all(Colors.blue[500]),
                 foregroundColor: MaterialStateProperty.all(Colors.black),
                 minimumSize: MaterialStateProperty.all(Size(200, 50)),
                 padding: MaterialStateProperty.all(
@@ -200,8 +199,7 @@ class _ReservationState extends State<Reservation> {
               },
               child: Text('포장'),
               style: ButtonStyle(
-                backgroundColor:
-                    MaterialStateProperty.all(Colors.lightBlueAccent),
+                backgroundColor: MaterialStateProperty.all(Colors.blue[500]),
                 foregroundColor: MaterialStateProperty.all(Colors.black),
                 minimumSize: MaterialStateProperty.all(Size(200, 50)),
                 padding: MaterialStateProperty.all(
@@ -423,8 +421,7 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
                 },
                 child: Text('다음'),
                 style: ButtonStyle(
-                  backgroundColor:
-                      MaterialStateProperty.all(Colors.lightBlueAccent),
+                  backgroundColor: MaterialStateProperty.all(Colors.blue[500]),
                   foregroundColor: MaterialStateProperty.all(Colors.black),
                   minimumSize: MaterialStateProperty.all(Size(200, 50)),
                   padding: MaterialStateProperty.all(

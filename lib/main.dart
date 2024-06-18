@@ -182,7 +182,7 @@ class _MyAppState extends State<MyApp> {
         '/favorite': (context) => Favorite(),
         '/editRestaurant': (context) => editregRestaurant(),
         '/MenuRegList': (context) => MenuRegList(),
-        '/cart': (context) => Cart(),
+        '/cart': (context) => cart(),
         '/reservation': (context) => Reservation(),
         '/community': (context) => CommunityMainPage(),
         '/communityMyPage': (context) => communityMyPage(),

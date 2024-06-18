@@ -318,7 +318,8 @@ class _RegRestaurantState extends State<regRestaurant> {
                                 fit: BoxFit.fill,
                               )
                             : DecorationImage(
-                                image: AssetImage("assets/images/malatang.png"),
+                                image:
+                                    AssetImage("assets/images/imageUpload.png"),
                                 fit: BoxFit.fill,
                               ),
                         borderRadius: BorderRadius.circular(12),
@@ -333,37 +334,7 @@ class _RegRestaurantState extends State<regRestaurant> {
                     ),
                   ),
                 ),
-                SizedBox(height: 50),
-                Text(
-                  '상호명',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                TextFormField(
-                  decoration: InputDecoration(),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '음식점 이름을 입력해주세요';
-                    }
-                    if (!_validateRestaurantName(value)) {
-                      if (!RegExp(r'^[가-힣]+$').hasMatch(value)) {
-                        return '상호명은 한글로만 가능합니다';
-                      }
-                      if (value.length > 15) {
-                        return '15글자 이하로 입력해주세요.';
-                      }
-                    }
-                    return null;
-                  },
-                  onSaved: (value) {
-                    _restaurantName = value!;
-                  },
-                ),
-                SizedBox(height: 20),
+                SizedBox(height: 30),
                 Container(
                   width: 200,
                   alignment: Alignment.centerLeft,
@@ -409,6 +380,37 @@ class _RegRestaurantState extends State<regRestaurant> {
                       ),
                     ),
                   ),
+                SizedBox(height: 20),
+                Text(
+                  '상호명',
+                  style: TextStyle(
+                    color: Color(0xFF1C1C21),
+                    fontSize: 18,
+                    fontFamily: 'Epilogue',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                TextFormField(
+                  decoration: InputDecoration(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '음식점 이름을 입력해주세요';
+                    }
+                    if (!_validateRestaurantName(value)) {
+                      if (!RegExp(r'^[가-힣]+$').hasMatch(value)) {
+                        return '상호명은 한글로만 가능합니다';
+                      }
+                      if (value.length > 15) {
+                        return '15글자 이하로 입력해주세요.';
+                      }
+                    }
+                    return null;
+                  },
+                  onSaved: (value) {
+                    _restaurantName = value!;
+                  },
+                ),
+                SizedBox(height: 20),
                 Text(
                   '등록번호',
                   style: TextStyle(
@@ -449,6 +451,7 @@ class _RegRestaurantState extends State<regRestaurant> {
                   children: [
                     ElevatedButton(
                       style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.blue[50],
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.all(
                           Radius.circular(10),
@@ -461,6 +464,7 @@ class _RegRestaurantState extends State<regRestaurant> {
                     ),
                     ElevatedButton(
                       style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.blue[50],
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.all(
                           Radius.circular(10),
@@ -531,6 +535,7 @@ class _RegRestaurantState extends State<regRestaurant> {
                 SizedBox(height: 40),
                 ElevatedButton(
                   style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.blue[50],
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.all(
                       Radius.circular(10),

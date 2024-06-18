@@ -238,7 +238,7 @@ class _MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Google Map Example'),
+        title: Text('위치'),
       ),
       body: Column(
         children: [
@@ -249,15 +249,15 @@ class _MapPageState extends State<MapPage> {
                 TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search for a place',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    suffixIcon: IconButton(
+                    prefixIcon: IconButton(
                       icon: Icon(Icons.search),
                       onPressed: () {
                         _searchAndNavigate(_searchController.text);
                       },
+                    ),
+                    hintText: '위치 검색',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
                 ),
@@ -324,7 +324,16 @@ class _MapPageState extends State<MapPage> {
                     )),
                   ),
                   onPressed: _navigateToAddressPage,
-                  child: Text('이 위치로 주소 설정'),
+                  child: Text(
+                    '이 위치로 주소 설정',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C21),
+                      fontSize: 15,
+                      fontFamily: 'Epilogue',
+                      height: 0.07,
+                      letterSpacing: -0.27,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -344,7 +353,7 @@ class AddressPage extends StatelessWidget {
   Future<void> _updateUserLocation(String address) async {
     User? user = FirebaseAuth.instance.currentUser; // 현재 로그인된 사용자 가져오기
     if (user == null) {
-      print('No user logged in');
+      print('로그아웃되어있습니다.');
       return;
     }
 
@@ -361,11 +370,11 @@ class AddressPage extends StatelessWidget {
         // 문서가 존재하면 업데이트
         DocumentReference nonMemberDoc = querySnapshot.docs[0].reference;
         await nonMemberDoc.update({'location': address}).catchError((error) {
-          print('Failed to update non-member location: $error');
+          print('비회원 위치 업데이트 실패 : $error');
         });
-        print('Non-member location updated: $address');
+        print('비회원 위치 업데이트 성공 : $address');
       } else {
-        print('Non-member document not found');
+        print('회원정보를 찾을 수 없습니다.');
       }
     } else {
       String email = user.email!;
@@ -380,11 +389,11 @@ class AddressPage extends StatelessWidget {
         // 문서가 존재하면 업데이트
         DocumentReference userDoc = querySnapshot.docs[0].reference;
         await userDoc.update({'location': address}).catchError((error) {
-          print('Failed to update user location: $error');
+          print('회원 위치 업데이트 실패 : $error');
         });
-        print('User location updated: $address');
+        print('회원 위치 업데이트 성공 : $address');
       } else {
-        print('User document not found');
+        print('회원정보를 찾을 수 없습니다.');
       }
     }
   }
@@ -395,7 +404,17 @@ class AddressPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Address Page'),
+        title: Text(
+          '상세주소',
+          style: TextStyle(
+            color: Color(0xFF1C1C21),
+            fontSize: 18,
+            fontFamily: 'Epilogue',
+            fontWeight: FontWeight.w700,
+            height: 0.07,
+            letterSpacing: -0.27,
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -416,6 +435,13 @@ class AddressPage extends StatelessWidget {
             ),
             SizedBox(height: 16.0),
             ElevatedButton(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.blue[50],
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(
+                  Radius.circular(10),
+                )),
+              ),
               onPressed: () async {
                 String detailAddress = _detailAddressController.text;
                 print('Detail Address: $detailAddress');
@@ -436,7 +462,16 @@ class AddressPage extends StatelessWidget {
                       context, '/editRestaurant', (route) => false);
                 }
               },
-              child: Text('상세 주소 저장'),
+              child: Text(
+                '상세 주소 저장',
+                style: TextStyle(
+                  color: Color(0xFF1C1C21),
+                  fontSize: 15,
+                  fontFamily: 'Epilogue',
+                  height: 0.07,
+                  letterSpacing: -0.27,
+                ),
+              ),
             ),
           ],
         ),

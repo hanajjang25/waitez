@@ -26,6 +26,8 @@ class _waitingDetailState extends State<waitingDetail> {
   bool isRestaurantSelected = true;
   bool isFavorite = false;
   String? restaurantAddress;
+  String?
+      restaurantPhotoUrl; // Add a variable to store the restaurant photo URL
   List<Map<String, dynamic>> orderItems = [];
   int totalAmount = 0;
   LatLng? restaurantLocation; // Add a variable to store the restaurant location
@@ -47,7 +49,7 @@ class _waitingDetailState extends State<waitingDetail> {
 
   Future<void> _fetchRestaurantDetails() async {
     try {
-      // Fetch restaurant address and average wait time from Firestore
+      // Fetch restaurant address, photo URL, and average wait time from Firestore
       var restaurantSnapshot = await FirebaseFirestore.instance
           .collection('restaurants')
           .where('restaurantName', isEqualTo: widget.restaurantName)
@@ -58,6 +60,8 @@ class _waitingDetailState extends State<waitingDetail> {
         var restaurantData = restaurantSnapshot.docs.first.data();
         setState(() {
           restaurantAddress = restaurantData['location'];
+          restaurantPhotoUrl =
+              restaurantData['photoUrl']; // Fetch the photo URL
           averageWaitTime = restaurantData['averageWaitTime'];
         });
 
@@ -413,7 +417,10 @@ class _waitingDetailState extends State<waitingDetail> {
                             height: 100,
                             decoration: BoxDecoration(
                               image: DecorationImage(
-                                image: AssetImage("assets/images/malatang.png"),
+                                image: restaurantPhotoUrl != null
+                                    ? NetworkImage(restaurantPhotoUrl!)
+                                    : AssetImage("assets/images/malatang.png")
+                                        as ImageProvider,
                                 fit: BoxFit.cover,
                               ),
                               borderRadius: BorderRadius.circular(12),

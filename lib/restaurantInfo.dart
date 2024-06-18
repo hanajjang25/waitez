@@ -216,14 +216,24 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(restaurantData!['restaurantName'] ?? 'Unknown'),
+        title: Text(
+          restaurantData!['restaurantName'] ?? 'Unknown',
+          style: TextStyle(
+            color: Color(0xFF1C1C21),
+            fontSize: 20,
+            fontFamily: 'Epilogue',
+            fontWeight: FontWeight.w700,
+            height: 0.07,
+            letterSpacing: -0.27,
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(height: 20),
+            SizedBox(height: 10),
             Center(
               child: Container(
                 width: 358,
@@ -237,21 +247,21 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                 ),
               ),
             ),
-            SizedBox(height: 50),
+            SizedBox(height: 40),
             Text(
               restaurantData!['restaurantName'] ?? 'Unknown',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
-                fontSize: 18,
+                fontSize: 20,
                 fontFamily: 'Epilogue',
                 fontWeight: FontWeight.w700,
                 height: 0.07,
                 letterSpacing: -0.27,
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 30),
             Padding(
-              padding: EdgeInsets.fromLTRB(50, 0, 50, 0),
+              padding: EdgeInsets.fromLTRB(30, 0, 30, 0),
               child: Row(
                 children: [
                   Text(
@@ -279,7 +289,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
             ),
             SizedBox(height: 10),
             Padding(
-              padding: EdgeInsets.fromLTRB(50, 0, 50, 0),
+              padding: EdgeInsets.fromLTRB(30, 0, 30, 0),
               child: Row(
                 children: [
                   Text(
@@ -301,7 +311,31 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                 ],
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 10),
+            Padding(
+              padding: EdgeInsets.fromLTRB(30, 0, 30, 0),
+              child: Row(
+                children: [
+                  Text(
+                    '설명',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C21),
+                      fontSize: 18,
+                      fontFamily: 'Epilogue',
+                      fontWeight: FontWeight.w700,
+                      height: 0.07,
+                      letterSpacing: -0.27,
+                    ),
+                  ),
+                  SizedBox(width: 50),
+                  Text(
+                    restaurantData!['description'] ?? 'Unknown',
+                    style: TextStyle(fontSize: 15),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 20),
             Text(
               'MENU',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -320,6 +354,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                 },
               ),
             ),
+            SizedBox(height: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -330,9 +365,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                   child: Text('예약하기'),
                   style: ButtonStyle(
                     backgroundColor: MaterialStateProperty.all(
-                        isWithinBusinessHours
-                            ? Color(0xFF1A94FF)
-                            : Colors.grey),
+                        isWithinBusinessHours ? Colors.blue[500] : Colors.grey),
                     foregroundColor: MaterialStateProperty.all(Colors.white),
                     minimumSize: MaterialStateProperty.all(Size(200, 50)),
                     padding: MaterialStateProperty.all(
@@ -346,9 +379,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                 )
               ],
             ),
-            SizedBox(
-              height: 50,
-            )
+            SizedBox(height: 20),
           ],
         ),
       ),

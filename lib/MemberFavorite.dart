@@ -143,7 +143,7 @@ class _FavoriteState extends State<Favorite> {
             TextField(
               onChanged: (value) => _filterItems(value),
               decoration: InputDecoration(
-                hintText: "Search Favorites",
+                hintText: "즐겨찾기 검색",
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -174,7 +174,7 @@ class _FavoriteState extends State<Favorite> {
                           return ListTile(
                             title: Text(item.name),
                             subtitle:
-                                Text("${item.address}, ${item.description}"),
+                                Text("${item.address}\n${item.description}"),
                             trailing: IconButton(
                               icon: Icon(
                                 isFavorite ? Icons.star : Icons.star_border,
@@ -195,24 +195,6 @@ class _FavoriteState extends State<Favorite> {
         ),
       ),
       bottomNavigationBar: menuButtom(), // 하단 네비게이션 바
-    );
-  }
-}
-
-class RestaurantDetailPage extends StatelessWidget {
-  final String restaurantId;
-
-  RestaurantDetailPage({required this.restaurantId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Restaurant Details'),
-      ),
-      body: Center(
-        child: Text('Details for restaurant ID: $restaurantId'),
-      ),
     );
   }
 }

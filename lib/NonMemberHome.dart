@@ -13,10 +13,9 @@ class nonMemberHome extends StatelessWidget {
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(70.0),
         child: AppBar(
+          automaticallyImplyLeading: false,
           backgroundColor: Colors.white,
           toolbarHeight: 100,
-          leading:
-              IconButton(onPressed: () {}, icon: Icon(Icons.menu)), // 왼쪽 메뉴버튼
           title: Text(
             'waitez',
             style: TextStyle(
@@ -77,6 +76,8 @@ class nonMemberHome extends StatelessWidget {
                   ),
                 ),
               ),
+              SizedBox(height: 20),
+              AdBanner(),
               SizedBox(height: 16),
               Card(
                 shape: RoundedRectangleBorder(
@@ -161,6 +162,45 @@ class nonMemberHome extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: nonMemberBottom(),
+    );
+  }
+}
+
+class AdBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+      ),
+      elevation: 4,
+      child: Container(
+        width: double.infinity,
+        height: 150,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15.0),
+          image: DecorationImage(
+            image: AssetImage('assets/images/kimbab.png'), // 배너 이미지 경로
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 10,
+              left: 10,
+              child: Text(
+                '맛있는 김밥\n어떠신가요!',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

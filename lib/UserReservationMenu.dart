@@ -70,11 +70,7 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
           if (reservationQuery.docs.isNotEmpty) {
             final reservationDoc = reservationQuery.docs.first;
             setState(() {
-              if (reservationDoc.data().containsKey('restaurantId')) {
-                restaurantId = reservationDoc['restaurantId'];
-              } else {
-                restaurantId = null; // 필드가 존재하지 않으면 null로 설정
-              }
+              restaurantId = reservationDoc['restaurantId'];
               reservationId = reservationDoc.id;
             });
             if (restaurantId != null) {
@@ -99,11 +95,7 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
           if (reservationQuery.docs.isNotEmpty) {
             final reservationDoc = reservationQuery.docs.first;
             setState(() {
-              if (reservationDoc.data().containsKey('restaurantId')) {
-                restaurantId = reservationDoc['restaurantId'];
-              } else {
-                restaurantId = null; // 필드가 존재하지 않으면 null로 설정
-              }
+              restaurantId = reservationDoc['restaurantId'];
               reservationId = reservationDoc.id;
             });
             if (restaurantId != null) {
@@ -187,6 +179,27 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
     }
   }
 
+  Future<int> _getNextWaitingNumber(String type) async {
+    int waitingNumber = 1;
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      DocumentSnapshot snapshot = await transaction.get(
+          FirebaseFirestore.instance.collection('waitingNumbers').doc(type));
+
+      if (!snapshot.exists) {
+        transaction.set(
+            FirebaseFirestore.instance.collection('waitingNumbers').doc(type),
+            {'currentNumber': 1});
+      } else {
+        int currentNumber = snapshot['currentNumber'];
+        waitingNumber = currentNumber + 1;
+        transaction.update(
+            FirebaseFirestore.instance.collection('waitingNumbers').doc(type),
+            {'currentNumber': waitingNumber});
+      }
+    });
+    return waitingNumber;
+  }
+
   Future<void> _confirmReservation() async {
     if (hasExistingReservation) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -216,40 +229,36 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
 
       if (reservationId != null) {
         try {
-          // Fetch today's reservations for the same restaurant and type
-          final today = DateTime.now();
-          final startOfDay = DateTime(today.year, today.month, today.day);
-          final endOfDay =
-              DateTime(today.year, today.month, today.day, 23, 59, 59);
-
-          final reservationQuery = await FirebaseFirestore.instance
-              .collection('reservations')
-              .where('restaurantId', isEqualTo: restaurantId)
-              .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
-              .where('timestamp', isLessThanOrEqualTo: endOfDay)
-              .where('type', isEqualTo: restaurantData?['type'])
-              .get();
-
-          // Calculate waiting number
-          final waitingNumber = reservationQuery.docs.length + 1;
-
-          // Update reservation with confirmed status and waiting number
-          await FirebaseFirestore.instance
+          DocumentSnapshot reservationSnapshot = await FirebaseFirestore
+              .instance
               .collection('reservations')
               .doc(reservationId)
-              .update({
-            'status': 'confirmed',
-            'waitingNumber': waitingNumber,
-          });
+              .get();
+          if (reservationSnapshot.exists) {
+            String type =
+                reservationSnapshot['type'] == 1 ? 'store' : 'takeout';
+            int waitingNumber = await _getNextWaitingNumber(type);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Reservation confirmed.')),
-          );
+            // Update reservation with confirmed status and waiting number
+            await FirebaseFirestore.instance
+                .collection('reservations')
+                .doc(reservationId)
+                .update({
+              'status': 'confirmed',
+              'waitingNumber': waitingNumber,
+            });
 
-          if (user.isAnonymous) {
-            Navigator.pushNamed(context, '/nonMemberWaitingNumber');
-          } else {
-            Navigator.pushNamed(context, '/waitingNumber');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      'Reservation confirmed with waiting number $waitingNumber.')),
+            );
+
+            if (user.isAnonymous) {
+              Navigator.pushNamed(context, '/nonMemberWaitingNumber');
+            } else {
+              Navigator.pushNamed(context, '/waitingNumber');
+            }
           }
         } catch (e) {
           _showErrorConfirmingReservation(e);
@@ -330,14 +339,24 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(restaurantData!['restaurantName'] ?? 'Unknown'),
+        title: Text(
+          restaurantData!['restaurantName'] ?? 'Unknown',
+          style: TextStyle(
+            color: Color(0xFF1C1C21),
+            fontSize: 18,
+            fontFamily: 'Epilogue',
+            fontWeight: FontWeight.w700,
+            height: 0.07,
+            letterSpacing: -0.27,
+          ),
+        ),
         actions: [
           IconButton(
             icon: Icon(Icons.shopping_cart),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => Cart()),
+                MaterialPageRoute(builder: (context) => cart()),
               );
             },
           ),
@@ -362,7 +381,7 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
                 ),
               ),
             ),
-            SizedBox(height: 50),
+            SizedBox(height: 40),
             Text(
               restaurantData!['restaurantName'] ?? 'Unknown',
               style: TextStyle(
@@ -374,9 +393,9 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
                 letterSpacing: -0.27,
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 30),
             Padding(
-              padding: EdgeInsets.fromLTRB(50, 0, 50, 0),
+              padding: EdgeInsets.fromLTRB(30, 0, 30, 0),
               child: Row(
                 children: [
                   Text(
@@ -394,7 +413,9 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
                   Expanded(
                     child: Text(
                       restaurantData!['location'] ?? 'Unknown',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 15),
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
                     ),
                   ),
                 ],
@@ -402,7 +423,7 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
             ),
             SizedBox(height: 10),
             Padding(
-              padding: EdgeInsets.fromLTRB(50, 0, 50, 0),
+              padding: EdgeInsets.fromLTRB(30, 0, 30, 0),
               child: Row(
                 children: [
                   Text(
@@ -420,6 +441,32 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
                   Expanded(
                     child: Text(
                       restaurantData!['businessHours'] ?? 'Unknown',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 10),
+            Padding(
+              padding: EdgeInsets.fromLTRB(30, 0, 30, 0),
+              child: Row(
+                children: [
+                  Text(
+                    '설명',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C21),
+                      fontSize: 18,
+                      fontFamily: 'Epilogue',
+                      fontWeight: FontWeight.w700,
+                      height: 1.5,
+                      letterSpacing: -0.27,
+                    ),
+                  ),
+                  SizedBox(width: 20),
+                  Expanded(
+                    child: Text(
+                      restaurantData!['description'] ?? 'Unknown',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
@@ -455,7 +502,7 @@ class _UserReservationMenuState extends State<UserReservationMenu> {
                   child: Text('예약하기'),
                   style: ButtonStyle(
                     backgroundColor:
-                        MaterialStateProperty.all(Color(0xFF1A94FF)),
+                        MaterialStateProperty.all(Colors.blue[500]),
                     foregroundColor: MaterialStateProperty.all(Colors.white),
                     minimumSize: MaterialStateProperty.all(Size(200, 50)),
                     padding: MaterialStateProperty.all(
@@ -633,7 +680,7 @@ class _MenuDetailsPageState extends State<MenuDetailsPage> {
                 ),
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 30),
             Text(
               widget.menuItem['menuName'] ?? 'Unknown',
               style: TextStyle(
@@ -645,7 +692,7 @@ class _MenuDetailsPageState extends State<MenuDetailsPage> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            SizedBox(height: 50),
+            SizedBox(height: 10),
             Text(
               '가격: ${widget.menuItem['price'] ?? '0'}원',
               style: TextStyle(
@@ -656,9 +703,20 @@ class _MenuDetailsPageState extends State<MenuDetailsPage> {
                 letterSpacing: -0.27,
               ),
             ),
-            SizedBox(height: 50),
+            SizedBox(height: 20),
             Text(
               widget.menuItem['description'] ?? '상세 설명이 없습니다.',
+              style: TextStyle(
+                color: Color(0xFF1C1C21),
+                fontSize: 18,
+                fontFamily: 'Epilogue',
+                height: 1.5,
+                letterSpacing: -0.27,
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              '원산지: ${widget.menuItem['price'] ?? '0'}원',
               style: TextStyle(
                 color: Color(0xFF1C1C21),
                 fontSize: 18,
@@ -670,301 +728,25 @@ class _MenuDetailsPageState extends State<MenuDetailsPage> {
             SizedBox(height: 100),
             Center(
               child: ElevatedButton(
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.blue[50],
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(
+                    Radius.circular(10),
+                  )),
+                ),
                 onPressed: () => addToCart(context),
-                child: Text('장바구니에 추가'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class Cart extends StatefulWidget {
-  @override
-  _CartState createState() => _CartState();
-}
-
-class _CartState extends State<Cart> {
-  List<Map<String, dynamic>> cartItems = [];
-  String reservationId = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserAndReservationId();
-  }
-
-  Future<void> _fetchUserAndReservationId() async {
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        String? nickname = await _fetchNickname(user.email!);
-        if (nickname != null) {
-          await _fetchLatestReservationId(nickname);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No user found with this email.')),
-          );
-        }
-      }
-    } catch (e) {
-      print('Error fetching user or reservation ID: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching user or reservation ID: $e')),
-      );
-    }
-  }
-
-  Future<String?> _fetchNickname(String email) async {
-    // users 컬렉션에서 사용자 정보를 찾음
-    final userQuery = await FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .limit(1)
-        .get();
-
-    if (userQuery.docs.isNotEmpty) {
-      return userQuery.docs.first['nickname'];
-    } else {
-      // non_member 컬렉션에서 사용자 정보를 찾음
-      final nonMemberQuery = await FirebaseFirestore.instance
-          .collection('non_member')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (nonMemberQuery.docs.isNotEmpty) {
-        return nonMemberQuery.docs.first['nickname'];
-      }
-    }
-    return null;
-  }
-
-  Future<void> _fetchLatestReservationId(String nickname) async {
-    final reservationQuery = await FirebaseFirestore.instance
-        .collection('reservations')
-        .where('nickname', isEqualTo: nickname)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-
-    if (reservationQuery.docs.isNotEmpty) {
-      final reservationDoc = reservationQuery.docs.first;
-      setState(() {
-        reservationId = reservationDoc.id;
-      });
-      _fetchCartItems();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No recent reservation found.')),
-      );
-    }
-  }
-
-  Future<void> _fetchCartItems() async {
-    if (reservationId.isNotEmpty) {
-      try {
-        final cartQuery = await FirebaseFirestore.instance
-            .collection('reservations')
-            .doc(reservationId)
-            .collection('cart')
-            .get();
-
-        setState(() {
-          cartItems = cartQuery.docs
-              .map((doc) =>
-                  {'id': doc.id, ...doc.data() as Map<String, dynamic>})
-              .toList();
-        });
-      } catch (e) {
-        print('Error fetching cart items: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching cart items: $e')),
-        );
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No reservation found to fetch cart items.')),
-      );
-    }
-  }
-
-  Future<void> removeItem(int index) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('reservations')
-          .doc(reservationId)
-          .collection('cart')
-          .doc(cartItems[index]['id'])
-          .delete();
-
-      setState(() {
-        cartItems.removeAt(index);
-      });
-    } catch (e) {
-      print('Error removing cart item: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error removing cart item: $e')),
-      );
-    }
-  }
-
-  Future<void> updateQuantity(int index, int quantity) async {
-    if (quantity > 0) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('reservations')
-            .doc(reservationId)
-            .collection('cart')
-            .doc(cartItems[index]['id'])
-            .update({'quantity': quantity});
-
-        setState(() {
-          cartItems[index]['quantity'] = quantity;
-        });
-      } catch (e) {
-        print('Error updating cart item quantity: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating cart item quantity: $e')),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    int totalPrice = cartItems.fold(
-        0,
-        (sum, item) =>
-            sum +
-            ((item['menuItem']?['price'] ?? 0) as int) *
-                ((item['quantity'] ?? 1) as int));
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('장바구니'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            SizedBox(height: 30),
-            Expanded(
-              child: cartItems.isNotEmpty
-                  ? ListView.builder(
-                      itemCount: cartItems.length,
-                      itemBuilder: (context, index) {
-                        final menuItem = cartItems[index]['menuItem'];
-                        return CartItem(
-                          name: menuItem != null
-                              ? menuItem['menuName'] as String? ?? ''
-                              : '',
-                          price: menuItem != null
-                              ? menuItem['price'] as int? ?? 0
-                              : 0,
-                          quantity: cartItems[index]['quantity'] as int? ?? 1,
-                          photoUrl: menuItem != null
-                              ? menuItem['photoUrl'] as String? ?? ''
-                              : '',
-                          onRemove: () => removeItem(index),
-                          onQuantityChanged: (newQuantity) =>
-                              updateQuantity(index, newQuantity),
-                        );
-                      },
-                    )
-                  : Center(child: Text('장바구니에 아이템이 없습니다.')),
-            ),
-            SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('총 금액', style: TextStyle(fontSize: 18)),
-                Text('₩ $totalPrice', style: TextStyle(fontSize: 18)),
-              ],
-            ),
-            SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class CartItem extends StatelessWidget {
-  final String name;
-  final int price;
-  final int quantity;
-  final String photoUrl;
-  final VoidCallback onRemove;
-  final ValueChanged<int> onQuantityChanged;
-
-  const CartItem({
-    required this.name,
-    required this.price,
-    required this.quantity,
-    required this.photoUrl,
-    required this.onRemove,
-    required this.onQuantityChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                image: photoUrl.isNotEmpty
-                    ? DecorationImage(
-                        image: NetworkImage(photoUrl),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-            ),
-            SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text('₩ $price',
-                      style: TextStyle(fontSize: 14, color: Colors.grey)),
-                ],
-              ),
-            ),
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.remove),
-                  onPressed: () {
-                    if (quantity > 1) {
-                      onQuantityChanged(quantity - 1);
-                    }
-                  },
+                child: Text(
+                  '장바구니에 추가',
+                  style: TextStyle(
+                    color: Color(0xFF1C1C21),
+                    fontSize: 15,
+                    fontFamily: 'Epilogue',
+                    height: 0.07,
+                    letterSpacing: -0.27,
+                  ),
                 ),
-                Text('$quantity', style: TextStyle(fontSize: 16)),
-                IconButton(
-                  icon: Icon(Icons.add),
-                  onPressed: () {
-                    onQuantityChanged(quantity + 1);
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.close),
-                  onPressed: onRemove,
-                ),
-              ],
+              ),
             ),
           ],
         ),

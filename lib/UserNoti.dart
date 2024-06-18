@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'notification.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class noti extends StatefulWidget {
   const noti({super.key});
@@ -12,19 +13,13 @@ class noti extends StatefulWidget {
 class _NotiState extends State<noti> {
   bool smsAlert = false;
   bool appAlert = false;
-
-  final List<String> notifications = [
-    "You have a new message from John.",
-    "Your order has been shipped.",
-    "Meeting at 3 PM.",
-    "Don't forget to water the plants.",
-    "New comment on your post.",
-  ];
+  int noShowCount = 0; // Add a variable to store no-show count
 
   @override
   void initState() {
     super.initState();
     _loadPreferences();
+    _fetchNoShowCount();
   }
 
   @override
@@ -62,6 +57,30 @@ class _NotiState extends State<noti> {
       _savePreference('smsAlert', smsAlert);
       debugPrint("SMS Alert: $smsAlert");
     });
+  }
+
+  Future<void> _fetchNoShowCount() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        String email = user.email!;
+        QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get();
+
+        if (userSnapshot.docs.isNotEmpty) {
+          var userData = userSnapshot.docs.first.data() as Map<String, dynamic>;
+          setState(() {
+            noShowCount = userData['noShowCount'] ?? 0;
+            noShowCount = (noShowCount) % 4;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching no-show count: $e');
+    }
   }
 
   @override
@@ -113,7 +132,7 @@ class _NotiState extends State<noti> {
           Divider(color: Colors.black, thickness: 2.0),
           SizedBox(height: 50),
           Text(
-            '1번',
+            '$noShowCount번', // Display the no-show count
             style: TextStyle(
               color: Color(0xFF1C1C21),
               fontSize: 18,

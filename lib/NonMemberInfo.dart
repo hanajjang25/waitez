@@ -53,16 +53,16 @@ class _NonMemberInfoState extends State<nonMemberInfo> {
       final nickname = _nicknameController.text.trim();
       final phone = _phoneController.text.trim();
 
-      if (nickname.isEmpty) {
+      if (nickname.isEmpty || nickname.length < 2 || nickname.length > 7) {
         setState(() {
-          _errorMessage = '닉네임을 입력하지 않았습니다. 추가해주세요.';
+          _errorMessage = '닉네임은 2글자 이상 7글자 이하로 입력해주세요.';
         });
         return;
       }
 
-      if (phone.isEmpty) {
+      if (phone.isEmpty || !_isValidPhoneNumber(phone)) {
         setState(() {
-          _errorMessage = '전화번호를 입력하지 않았습니다. 추가해주세요.';
+          _errorMessage = '전화번호를 010-0000-0000 형식으로 입력해주세요.';
         });
         return;
       }
@@ -76,7 +76,7 @@ class _NonMemberInfoState extends State<nonMemberInfo> {
 
       if (await _isPhoneExists(phone)) {
         setState(() {
-          _errorMessage = '이미 존재하는 전화번호입니다, 다른 전화번호를 입력해주세요';
+          _errorMessage = '이미 존재하는 전화번호입니다. 다른 전화번호를 입력해주세요';
         });
         return;
       }
@@ -106,6 +106,11 @@ class _NonMemberInfoState extends State<nonMemberInfo> {
     } catch (e) {
       print('Error saving non-member info: $e');
     }
+  }
+
+  bool _isValidPhoneNumber(String phone) {
+    final phoneRegExp = RegExp(r'^010-\d{4}-\d{4}$');
+    return phoneRegExp.hasMatch(phone);
   }
 
   String _formatPhoneNumber(String value) {
@@ -152,6 +157,7 @@ class _NonMemberInfoState extends State<nonMemberInfo> {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(
                     RegExp(r'[ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z0-9]')),
+                LengthLimitingTextInputFormatter(7),
               ],
               keyboardType: TextInputType.text,
             ),

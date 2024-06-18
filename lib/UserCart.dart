@@ -4,30 +4,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class cart extends StatefulWidget {
   @override
-  _CartPageState createState() => _CartPageState();
+  _CartState createState() => _CartState();
 }
 
-class _CartPageState extends State<cart> {
+class _CartState extends State<cart> {
   List<Map<String, dynamic>> cartItems = [];
-  String nickname = '';
   String reservationId = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchUserAndCartItems();
+    _fetchUserAndReservationId();
   }
 
-  Future<void> _fetchUserAndCartItems() async {
+  Future<void> _fetchUserAndReservationId() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        String? fetchedNickname = await _fetchNickname(user);
-        if (fetchedNickname != null) {
-          setState(() {
-            nickname = fetchedNickname;
-          });
-          await _fetchReservationIdAndCartItems(fetchedNickname);
+        String? nickname = await _fetchNickname(user.email!);
+        if (nickname != null) {
+          await _fetchLatestReservationId(nickname);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('No user found with this email.')),
@@ -35,91 +31,83 @@ class _CartPageState extends State<cart> {
         }
       }
     } catch (e) {
-      print('Error fetching user or cart items: $e');
+      print('Error fetching user or reservation ID: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching user or cart items: $e')),
+        SnackBar(content: Text('Error fetching user or reservation ID: $e')),
       );
     }
   }
 
-  Future<String?> _fetchNickname(User user) async {
-    String? nickname;
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+  Future<String?> _fetchNickname(String email) async {
+    // users 컬렉션에서 사용자 정보를 찾음
+    final userQuery = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
 
-      if (userDoc.exists) {
-        nickname = userDoc['nickname'];
-      }
-    } catch (e) {
-      print('Error fetching user nickname: $e');
-    }
-
-    if (nickname == null) {
-      try {
-        final nonMemberQuery = await FirebaseFirestore.instance
-            .collection('non_members')
-            .where('uid', isEqualTo: user.uid)
-            .limit(1)
-            .get();
-
-        if (nonMemberQuery.docs.isNotEmpty) {
-          nickname = nonMemberQuery.docs.first['nickname'];
-        }
-      } catch (e) {
-        print('Error fetching non-member nickname: $e');
-      }
-    }
-
-    return nickname;
-  }
-
-  Future<void> _fetchReservationIdAndCartItems(String nickname) async {
-    try {
-      final reservationQuery = await FirebaseFirestore.instance
-          .collection('reservations')
-          .where('nickname', isEqualTo: nickname)
-          .orderBy('timestamp', descending: true)
+    if (userQuery.docs.isNotEmpty) {
+      return userQuery.docs.first['nickname'];
+    } else {
+      // non_member 컬렉션에서 사용자 정보를 찾음
+      final nonMemberQuery = await FirebaseFirestore.instance
+          .collection('non_member')
+          .where('email', isEqualTo: email)
           .limit(1)
           .get();
 
-      if (reservationQuery.docs.isNotEmpty) {
-        setState(() {
-          reservationId = reservationQuery.docs.first.id;
-        });
-        _fetchCartItems(reservationId);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No recent reservation found.')),
-        );
+      if (nonMemberQuery.docs.isNotEmpty) {
+        return nonMemberQuery.docs.first['nickname'];
       }
-    } catch (e) {
-      print('Error fetching reservation ID: $e');
+    }
+    return null;
+  }
+
+  Future<void> _fetchLatestReservationId(String nickname) async {
+    final reservationQuery = await FirebaseFirestore.instance
+        .collection('reservations')
+        .where('nickname', isEqualTo: nickname)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+
+    if (reservationQuery.docs.isNotEmpty) {
+      final reservationDoc = reservationQuery.docs.first;
+      setState(() {
+        reservationId = reservationDoc.id;
+      });
+      _fetchCartItems();
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching reservation ID: $e')),
+        SnackBar(content: Text('No recent reservation found.')),
       );
     }
   }
 
-  Future<void> _fetchCartItems(String reservationId) async {
-    try {
-      final cartQuery = await FirebaseFirestore.instance
-          .collection('reservations')
-          .doc(reservationId)
-          .collection('cart')
-          .get();
+  Future<void> _fetchCartItems() async {
+    if (reservationId.isNotEmpty) {
+      try {
+        final cartQuery = await FirebaseFirestore.instance
+            .collection('reservations')
+            .doc(reservationId)
+            .collection('cart')
+            .get();
 
-      setState(() {
-        cartItems = cartQuery.docs
-            .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
-            .toList();
-      });
-    } catch (e) {
-      print('Error fetching cart items: $e');
+        setState(() {
+          cartItems = cartQuery.docs
+              .map((doc) =>
+                  {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .toList();
+        });
+      } catch (e) {
+        print('Error fetching cart items: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching cart items: $e')),
+        );
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching cart items: $e')),
+        SnackBar(content: Text('No reservation found to fetch cart items.')),
       );
     }
   }
@@ -145,7 +133,7 @@ class _CartPageState extends State<cart> {
   }
 
   Future<void> updateQuantity(int index, int quantity) async {
-    if (quantity > 0) {
+    if (quantity > 0 && quantity <= 50) {
       try {
         await FirebaseFirestore.instance
             .collection('reservations')
@@ -177,7 +165,17 @@ class _CartPageState extends State<cart> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('장바구니'),
+        title: Text(
+          '장바구니',
+          style: TextStyle(
+            color: Color(0xFF1C1C21),
+            fontSize: 18,
+            fontFamily: 'Epilogue',
+            fontWeight: FontWeight.w700,
+            height: 0.07,
+            letterSpacing: -0.27,
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -213,7 +211,17 @@ class _CartPageState extends State<cart> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('총 금액', style: TextStyle(fontSize: 18)),
+                Text(
+                  '총 금액',
+                  style: TextStyle(
+                    color: Color(0xFF1C1C21),
+                    fontSize: 18,
+                    fontFamily: 'Epilogue',
+                    fontWeight: FontWeight.w700,
+                    height: 0.07,
+                    letterSpacing: -0.27,
+                  ),
+                ),
                 Text('₩ $totalPrice', style: TextStyle(fontSize: 18)),
               ],
             ),
@@ -245,9 +253,9 @@ class CartItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 8.0),
+      margin: EdgeInsets.symmetric(vertical: 10.0),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(15.0),
         child: Row(
           children: [
             Container(
@@ -263,7 +271,7 @@ class CartItem extends StatelessWidget {
                     : null,
               ),
             ),
-            SizedBox(width: 10),
+            SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,9 +297,11 @@ class CartItem extends StatelessWidget {
                 Text('$quantity', style: TextStyle(fontSize: 16)),
                 IconButton(
                   icon: Icon(Icons.add),
-                  onPressed: () {
-                    onQuantityChanged(quantity + 1);
-                  },
+                  onPressed: quantity < 50
+                      ? () {
+                          onQuantityChanged(quantity + 1);
+                        }
+                      : null,
                 ),
                 IconButton(
                   icon: Icon(Icons.close),

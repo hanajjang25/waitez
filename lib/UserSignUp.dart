@@ -131,10 +131,8 @@ class _SignUpState extends State<SignUp> {
         return "fail"; // Registration failed
       }
     } on FirebaseAuthException catch (e) {
-      _showErrorDialog("오류", "회원가입 실패: ${e.message}");
       return "fail"; // Other errors
     } catch (e) {
-      _showErrorDialog("오류", "회원가입 중 알 수 없는 오류가 발생했습니다: $e");
       return "fail"; // General error
     }
   }
@@ -304,7 +302,7 @@ class _SignUpState extends State<SignUp> {
                                 child: Text(
                                   '회원가입',
                                   style: TextStyle(
-                                    color: Color(0xFF1A94FF),
+                                    color: Colors.blueAccent,
                                     fontSize: 16,
                                     fontFamily: 'Inter',
                                     fontWeight: FontWeight.w600,
@@ -415,13 +413,13 @@ class _SignUpState extends State<SignUp> {
                                     },
                                     child: Text(
                                       '이메일 인증',
-                                      style: TextStyle(color: Colors.white),
+                                      style: TextStyle(color: Colors.black),
                                       textAlign: TextAlign.center,
                                     ),
                                     style: ButtonStyle(
                                       backgroundColor:
                                           MaterialStateProperty.all(
-                                              Colors.lightBlueAccent),
+                                              Colors.blue[50]),
                                       foregroundColor:
                                           MaterialStateProperty.all(
                                               Colors.white),
@@ -647,7 +645,7 @@ class _SignUpState extends State<SignUp> {
                                     if (_currentUser != null) {
                                       await _currentUser!.delete();
                                     }
-                                    _showErrorDialog("오류", "회원가입에 실패했습니다.");
+
                                     break;
                                   default:
                                     break;
