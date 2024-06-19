@@ -66,10 +66,10 @@ class _staffProfileState extends State<staffProfile> {
         reservation['restaurantName'] =
             restaurantData?['restaurantName'] ?? 'Unknown';
         reservation['restaurantPhoto'] =
-            restaurantData?['photoUrl'] ?? 'assets/images/malatang.png';
+            restaurantData?['photoUrl'] ?? 'assets/images/memberImage.png';
       } else {
         reservation['restaurantName'] = 'Unknown';
-        reservation['restaurantPhoto'] = 'assets/images/malatang.png';
+        reservation['restaurantPhoto'] = 'assets/images/memberImage.png';
       }
 
       fetchedReservations.add(reservation);
@@ -90,7 +90,7 @@ class _staffProfileState extends State<staffProfile> {
         'isLoggedIn': false,
       });
       await FirebaseAuth.instance.signOut();
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     }
   }
 
@@ -111,7 +111,7 @@ class _staffProfileState extends State<staffProfile> {
             TextButton(
               child: Text('확인'),
               onPressed: () {
-                Navigator.pushNamed(context, '/login');
+                Navigator.pushNamed(context, '/');
                 _logout(context);
               },
             ),
@@ -158,7 +158,7 @@ class _staffProfileState extends State<staffProfile> {
               SizedBox(height: 50),
               CircleAvatar(
                 radius: 50,
-                backgroundImage: AssetImage("assets/images/malatang.png"),
+                backgroundImage: AssetImage("assets/images/memberImage.png"),
               ),
               SizedBox(height: 10),
               Text(

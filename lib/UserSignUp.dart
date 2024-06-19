@@ -313,7 +313,7 @@ class _SignUpState extends State<SignUp> {
                             SizedBox(width: 80),
                             TextButton(
                               onPressed: () {
-                                Navigator.pushNamed(context, '/login');
+                                Navigator.pushNamed(context, '/');
                               },
                               child: Text(
                                 '로그인',
@@ -625,7 +625,7 @@ class _SignUpState extends State<SignUp> {
                                       await _currentUser!
                                           .updatePassword(password);
                                     }
-                                    Navigator.pushNamed(context, '/login');
+                                    Navigator.pushNamed(context, '/');
                                     break;
                                   case "nickname-already-in-use":
                                     _showErrorDialog("오류", "동일한 닉네임이 존재합니다.");

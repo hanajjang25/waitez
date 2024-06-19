@@ -25,9 +25,13 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           .collection('community')
           .where('title', isGreaterThanOrEqualTo: _searchQuery)
           .where('title', isLessThanOrEqualTo: _searchQuery + '\uf8ff')
+          .orderBy('timestamp', descending: true) // 최신 글이 위로 오도록 설정
           .get();
     } else {
-      snapshot = await _firestore.collection('community').get();
+      snapshot = await _firestore
+          .collection('community')
+          .orderBy('timestamp', descending: true) // 최신 글이 위로 오도록 설정
+          .get();
     }
 
     return snapshot.docs.map((doc) {

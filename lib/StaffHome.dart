@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'StaffBottom.dart';
 import 'notification.dart';
 
@@ -100,7 +102,7 @@ class _homeStaffState extends State<homeStaff> {
             .get();
 
         final today = DateTime.now().toLocal();
-        final formattedToday = "${today.year}-${today.month}-${today.day}";
+        final formattedToday = DateFormat('yyyy-MM-dd').format(today);
 
         List<WaitlistEntry> storeList = [];
         List<WaitlistEntry> takeoutList = [];
@@ -112,7 +114,7 @@ class _homeStaffState extends State<homeStaff> {
               (data['timestamp'] as Timestamp?)?.toDate().toLocal();
           if (timestamp != null) {
             final formattedTimestamp =
-                "${timestamp.year}-${timestamp.month}-${timestamp.day}";
+                DateFormat('yyyy-MM-dd').format(timestamp);
 
             if (formattedTimestamp == formattedToday) {
               final type = data['type'] == 1 ? '매장' : '포장';
@@ -166,16 +168,15 @@ class _homeStaffState extends State<homeStaff> {
     }
   }
 
-  Future<void> _cancelReservation(String id) async {
+  Future<void> _cancelReservation(String id, List<String> phoneNumbers) async {
     try {
       await FirebaseFirestore.instance
           .collection('reservations')
           .doc(id)
           .update({'status': 'cancelled'});
       _fetchConfirmedReservations();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reservation cancelled successfully.')),
-      );
+      NotificationService.sendSmsNotification(
+          '매장 사정으로 인해 예약취소되었습니다.', phoneNumbers);
     } catch (e) {
       print('Error cancelling reservation: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -307,9 +308,12 @@ class _homeStaffState extends State<homeStaff> {
         if (waitP.altPhoneNum != null && waitP.altPhoneNum!.isNotEmpty) {
           phoneNumbers.add(waitP.altPhoneNum!);
         }
+        final formattedTimeStamp =
+            DateFormat('yyyy-MM-dd HH:mm:ss').format(waitP.timeStamp);
         return Padding(
           padding: const EdgeInsets.all(8.0),
           child: Card(
+            color: Colors.blue[50],
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -325,7 +329,7 @@ class _homeStaffState extends State<homeStaff> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text('날짜: ${waitP.timeStamp.toString()}'),
+                      Text('날짜: $formattedTimeStamp'),
                     ],
                   ),
                   SizedBox(height: 10),
@@ -352,7 +356,8 @@ class _homeStaffState extends State<homeStaff> {
                             Radius.circular(10),
                           )),
                         ),
-                        onPressed: () => _cancelReservation(waitP.id),
+                        onPressed: () =>
+                            _cancelReservation(waitP.id, phoneNumbers),
                         child: Text(
                           '예약취소',
                           style: TextStyle(
@@ -503,14 +508,5 @@ class _homeStaffState extends State<homeStaff> {
       ),
       bottomNavigationBar: staffBottom(),
     );
-  }
-}
-
-class NotificationService {
-  static void sendSmsNotification(String message, List<String> phoneNumbers) {
-    for (String phoneNumber in phoneNumbers) {
-      // SMS 전송 로직 구현 (예: Twilio API 사용)
-      print('Sending SMS to $phoneNumber: $message');
-    }
   }
 }

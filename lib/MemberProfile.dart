@@ -66,7 +66,7 @@ class _ProfileState extends State<Profile> {
         reservation['restaurantName'] =
             restaurantData?['restaurantName'] ?? 'Unknown';
         reservation['restaurantPhoto'] =
-            restaurantData?['photoUrl'] ?? 'assets/images/malatang.png';
+            restaurantData?['photoUrl'] ?? 'assets/images/memberImage.png';
         reservation['address'] = restaurantData?['location'] ?? 'Unknown';
         reservation['operatingHours'] =
             restaurantData?['businessHours'] ?? 'Unknown';
@@ -79,7 +79,7 @@ class _ProfileState extends State<Profile> {
         fetchedReservations.add(reservation);
       } else {
         reservation['restaurantName'] = 'Unknown';
-        reservation['restaurantPhoto'] = 'assets/images/malatang.png';
+        reservation['restaurantPhoto'] = 'assets/images/memberImage.png';
         reservation['address'] = 'Unknown';
         reservation['operatingHours'] = 'Unknown';
         reservation['type'] = 'Unknown';
@@ -140,7 +140,7 @@ class _ProfileState extends State<Profile> {
         'isLoggedIn': false,
       });
       await FirebaseAuth.instance.signOut();
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     }
   }
 
@@ -161,7 +161,7 @@ class _ProfileState extends State<Profile> {
             TextButton(
               child: Text('확인'),
               onPressed: () {
-                Navigator.pushNamed(context, '/login');
+                Navigator.pushNamed(context, '/');
                 _logout(context);
               },
             ),
@@ -213,7 +213,7 @@ class _ProfileState extends State<Profile> {
             children: [
               CircleAvatar(
                 radius: 50,
-                backgroundImage: AssetImage("assets/images/malatang.png"),
+                backgroundImage: AssetImage("assets/images/memberImage.png"),
               ),
               SizedBox(height: 10),
               Text(

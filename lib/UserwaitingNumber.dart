@@ -169,8 +169,8 @@ class _WaitingNumberState extends State<waitingNumber> {
       for (var reservation in reservations) {
         if (reservation['waitingNumber'] == 1) {
           FlutterLocalNotification.showNotification(
-            '대기순번 안내',
-            '대기 순번이 1번입니다.',
+            '대기순번 1번 안내',
+            '음식점에 방문할 준비를 해주세요.',
           );
         }
       }
@@ -325,28 +325,21 @@ class _WaitingNumberState extends State<waitingNumber> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Add the image
-              restaurantPhotoUrl.isNotEmpty
-                  ? Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8.0),
-                        image: DecorationImage(
-                          image: NetworkImage(restaurantPhotoUrl),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    )
-                  : Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8.0),
-                        color: Colors.grey,
-                      ),
-                      child: Icon(Icons.restaurant, color: Colors.white),
+              Container(
+                width: 60,
+                height: 60,
+                child: Center(
+                  child: Text(
+                    '$waitingNumber',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C21),
+                      fontSize: 20,
+                      fontFamily: 'Epilogue',
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
+                ),
+              ),
               SizedBox(width: 20),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

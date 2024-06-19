@@ -85,6 +85,7 @@ flutter:
     - assets/images/salad.png
     - assets/images/sendmail.png
     - assets/images/imageUpload.png
+    - assets/images/memberImage.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

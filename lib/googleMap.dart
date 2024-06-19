@@ -262,17 +262,20 @@ class _MapPageState extends State<MapPage> {
                   ),
                 ),
                 if (_suggestions.isNotEmpty)
-                  ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _suggestions.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        title: Text(_suggestions[index]),
-                        onTap: () {
-                          _searchAndNavigate(_suggestions[index]);
-                        },
-                      );
-                    },
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: 200),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _suggestions.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          title: Text(_suggestions[index]),
+                          onTap: () {
+                            _searchAndNavigate(_suggestions[index]);
+                          },
+                        );
+                      },
+                    ),
                   ),
               ],
             ),
@@ -319,9 +322,10 @@ class _MapPageState extends State<MapPage> {
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.blue[50],
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(
-                      Radius.circular(10),
-                    )),
+                      borderRadius: BorderRadius.all(
+                        Radius.circular(10),
+                      ),
+                    ),
                   ),
                   onPressed: _navigateToAddressPage,
                   child: Text(
@@ -438,9 +442,10 @@ class AddressPage extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 backgroundColor: Colors.blue[50],
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(
-                  Radius.circular(10),
-                )),
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(10),
+                  ),
+                ),
               ),
               onPressed: () async {
                 String detailAddress = _detailAddressController.text;

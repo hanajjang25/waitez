@@ -328,9 +328,13 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
                     ),
                   ),
                   SizedBox(width: 50),
-                  Text(
-                    restaurantData!['description'] ?? 'Unknown',
-                    style: TextStyle(fontSize: 15),
+                  Expanded(
+                    child: Text(
+                      restaurantData!['description'] ?? 'Unknown',
+                      style: TextStyle(fontSize: 15),
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
+                    ),
                   ),
                 ],
               ),

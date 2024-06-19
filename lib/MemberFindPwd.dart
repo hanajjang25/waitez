@@ -178,7 +178,7 @@ class _FindPasswordState extends State<findPassword> {
                       WidgetSpan(
                         child: TextButton(
                           onPressed: () {
-                            Navigator.pushNamed(context, '/login');
+                            Navigator.pushNamed(context, '/');
                           },
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,

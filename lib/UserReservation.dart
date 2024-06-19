@@ -138,6 +138,9 @@ class _ReservationState extends State<Reservation> {
                 } else {
                   if (numberOfPeople > 0) {
                     _saveReservation(context, '매장');
+                  }
+                  if (numberOfPeople > 10) {
+                    showSnackBar(context, '인원수는 10명을 초과할 수 없습니다.');
                   } else {
                     showSnackBar(context, '인원수를 선택하세요');
                   }
@@ -180,10 +183,12 @@ class _ReservationState extends State<Reservation> {
                     Text('$numberOfPeople'),
                     IconButton(
                       icon: Icon(Icons.add),
-                      onPressed: isPeopleSelectorEnabled
+                      onPressed: isPeopleSelectorEnabled && numberOfPeople < 10
                           ? () {
                               setState(() {
-                                numberOfPeople++;
+                                if (numberOfPeople < 10) {
+                                  numberOfPeople++;
+                                }
                               });
                             }
                           : null,
@@ -347,94 +352,97 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 50),
-            Text(
-              '닉네임',
-              style: TextStyle(
-                color: Color(0xFF1C1C21),
-                fontSize: 18,
-                fontFamily: 'Epilogue',
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 50),
+              Text(
+                '닉네임',
+                style: TextStyle(
+                  color: Color(0xFF1C1C21),
+                  fontSize: 18,
+                  fontFamily: 'Epilogue',
+                ),
               ),
-            ),
-            TextFormField(
-              controller: _nicknameController,
-              decoration: InputDecoration(),
-              readOnly: true, // 텍스트 필드를 읽기 전용으로 설정
-            ),
-            SizedBox(height: 30),
-            Text(
-              '전화번호',
-              style: TextStyle(
-                color: Color(0xFF1C1C21),
-                fontSize: 18,
-                fontFamily: 'Epilogue',
+              TextFormField(
+                controller: _nicknameController,
+                decoration: InputDecoration(),
+                readOnly: true, // 텍스트 필드를 읽기 전용으로 설정
               ),
-            ),
-            TextFormField(
-              controller: _phoneController,
-              decoration: InputDecoration(),
-              readOnly: true, // 텍스트 필드를 읽기 전용으로 설정
-            ),
-            SizedBox(height: 30),
-            Text(
-              '보조전화번호',
-              style: TextStyle(
-                color: Color(0xFF1C1C21),
-                fontSize: 18,
-                fontFamily: 'Epilogue',
+              SizedBox(height: 30),
+              Text(
+                '전화번호',
+                style: TextStyle(
+                  color: Color(0xFF1C1C21),
+                  fontSize: 18,
+                  fontFamily: 'Epilogue',
+                ),
               ),
-            ),
-            TextFormField(
-              controller: _altPhoneController,
-              decoration: InputDecoration(
-                hintText: '010-0000-0000',
+              TextFormField(
+                controller: _phoneController,
+                decoration: InputDecoration(),
+                readOnly: true, // 텍스트 필드를 읽기 전용으로 설정
               ),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(11),
-                TextInputFormatter.withFunction(
-                  (oldValue, newValue) {
-                    String newText = _formatPhoneNumber(newValue.text);
-                    return TextEditingValue(
-                      text: newText,
-                      selection:
-                          TextSelection.collapsed(offset: newText.length),
+              SizedBox(height: 30),
+              Text(
+                '보조전화번호',
+                style: TextStyle(
+                  color: Color(0xFF1C1C21),
+                  fontSize: 18,
+                  fontFamily: 'Epilogue',
+                ),
+              ),
+              TextFormField(
+                controller: _altPhoneController,
+                decoration: InputDecoration(
+                  hintText: '010-0000-0000',
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(11),
+                  TextInputFormatter.withFunction(
+                    (oldValue, newValue) {
+                      String newText = _formatPhoneNumber(newValue.text);
+                      return TextEditingValue(
+                        text: newText,
+                        selection:
+                            TextSelection.collapsed(offset: newText.length),
+                      );
+                    },
+                  ),
+                ],
+                keyboardType: TextInputType.number,
+                readOnly: false, // 보조 전화번호는 편집 가능하도록 설정
+              ),
+              SizedBox(height: 100),
+              Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await _saveReservationInfo();
+                    Navigator.pushNamed(
+                      context,
+                      '/reservationMenu',
                     );
                   },
-                ),
-              ],
-              keyboardType: TextInputType.number,
-              readOnly: false, // 보조 전화번호는 편집 가능하도록 설정
-            ),
-            SizedBox(height: 100),
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  await _saveReservationInfo();
-                  Navigator.pushNamed(
-                    context,
-                    '/reservationMenu',
-                  );
-                },
-                child: Text('다음'),
-                style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all(Colors.blue[500]),
-                  foregroundColor: MaterialStateProperty.all(Colors.black),
-                  minimumSize: MaterialStateProperty.all(Size(200, 50)),
-                  padding: MaterialStateProperty.all(
-                      EdgeInsets.symmetric(horizontal: 10)),
-                  shape: MaterialStateProperty.all(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                  child: Text('다음'),
+                  style: ButtonStyle(
+                    backgroundColor:
+                        MaterialStateProperty.all(Colors.blue[500]),
+                    foregroundColor: MaterialStateProperty.all(Colors.black),
+                    minimumSize: MaterialStateProperty.all(Size(200, 50)),
+                    padding: MaterialStateProperty.all(
+                        EdgeInsets.symmetric(horizontal: 10)),
+                    shape: MaterialStateProperty.all(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: reservationBottom(),

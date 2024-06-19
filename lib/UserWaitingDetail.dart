@@ -218,7 +218,7 @@ class _waitingDetailState extends State<waitingDetail> {
 
                     FlutterLocalNotification.showNotification(
                       '예약취소',
-                      '예약취소 성공',
+                      '예약이 취소되었습니다.',
                     );
 
                     Navigator.of(context).pop();
@@ -687,11 +687,13 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
                     Text('$numberOfPeople'),
                     IconButton(
                         icon: Icon(Icons.add),
-                        onPressed: isTakeout
+                        onPressed: isTakeout || numberOfPeople >= 10
                             ? null
                             : () {
                                 setState(() {
-                                  numberOfPeople++;
+                                  if (numberOfPeople < 10) {
+                                    numberOfPeople++;
+                                  }
                                 });
                               }),
                   ],

@@ -118,7 +118,7 @@ class findPasswordEmail extends StatelessWidget {
                     // 버튼을 가운데 정렬
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/login');
+                        Navigator.pushNamed(context, '/');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0xFF1A94FF), // 버튼의 배경색 설정

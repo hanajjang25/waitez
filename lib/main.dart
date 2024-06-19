@@ -167,8 +167,8 @@ class _MyAppState extends State<MyApp> {
         }
       },
       routes: {
-        '/': (context) => StartPage(),
-        '/login': (context) => login(),
+        '/': (context) => login(),
+        //'/login': (context) => login(),
         '/signup': (context) => SignUp(),
         '/memberInfo': (context) => memberInfo(),
         '/findPassword': (context) => findPassword(),
