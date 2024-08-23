@@ -8,22 +8,22 @@ import 'googleMap.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
-class search extends StatefulWidget {
+class search extends StatefulWidget {                                           // 검색 페이지 Stateful 위젯 정의
   const search({super.key});
 
   @override
-  State<search> createState() => _SearchState();
+  State<search> createState() => _SearchState();                               // 검색 페이지의 상태 관리 클래스 생성
 }
 
-class SearchDetails {
+class SearchDetails {                                                          // 음식점 검색 결과를 나타내는 클래스
   final String id;
   final String name;
   final String address;
   final String description;
   final String businessHours;
   final String photoUrl;
-  late List<Map<String, dynamic>> menuItems;
-  double? distance;
+  late List<Map<String, dynamic>> menuItems;                                   // 메뉴 아이템 리스트 초기화
+  double? distance;                                                            // 음식점과 사용자 간의 거리
 
   SearchDetails({
     required this.id,
@@ -36,7 +36,7 @@ class SearchDetails {
     this.distance,
   });
 
-  factory SearchDetails.fromFirestore(DocumentSnapshot doc) {
+  factory SearchDetails.fromFirestore(DocumentSnapshot doc) {                  // Firestore에서 데이터 가져오기
     final data = doc.data() as Map<String, dynamic>;
     return SearchDetails(
       id: doc.id,
@@ -50,24 +50,24 @@ class SearchDetails {
   }
 }
 
-class _SearchState extends State<search> {
+class _SearchState extends State<search> {                                     // 검색 페이지의 상태 관리 클래스
   final CollectionReference _collectionRef =
       FirebaseFirestore.instance.collection('restaurants');
-  List<SearchDetails> allItems = [];
-  List<SearchDetails> filteredItems = [];
-  String? _locationKeyword;
-  String? _searchKeyword;
-  String? _currentAddress;
-  Position? _currentPosition;
+  List<SearchDetails> allItems = [];                                           // 모든 음식점 리스트
+  List<SearchDetails> filteredItems = [];                                      // 필터된 음식점 리스트
+  String? _locationKeyword;                                                    // 위치 키워드
+  String? _searchKeyword;                                                      // 검색 키워드
+  String? _currentAddress;                                                     // 현재 위치 주소
+  Position? _currentPosition;                                                  // 현재 위치
 
   @override
   void initState() {
     super.initState();
-    _fetchAllItems();
-    _fetchUserLocationFromDatabase();
+    _fetchAllItems();                                                          // 모든 음식점 데이터를 가져오기
+    _fetchUserLocationFromDatabase();                                          // 사용자 위치 데이터베이스에서 가져오기
   }
 
-  Future<void> _fetchAllItems() async {
+  Future<void> _fetchAllItems() async {                                        // 모든 음식점 데이터를 가져오는 메서드
     try {
       QuerySnapshot querySnapshot =
           await _collectionRef.where('isDeleted', isEqualTo: false).get();
@@ -88,7 +88,7 @@ class _SearchState extends State<search> {
         setState(() {
           allItems = results;
           filteredItems = results;
-          _calculateDistances();
+          _calculateDistances();                                               // 거리 계산 메서드 호출
         });
       }
     } catch (e) {
@@ -101,7 +101,7 @@ class _SearchState extends State<search> {
     }
   }
 
-  Future<void> _fetchUserLocationFromDatabase() async {
+  Future<void> _fetchUserLocationFromDatabase() async {                        // 사용자 위치 데이터베이스에서 가져오기
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final userDoc = await FirebaseFirestore.instance
@@ -112,15 +112,15 @@ class _SearchState extends State<search> {
         final userData = userDoc.data() as Map<String, dynamic>;
         if (mounted) {
           setState(() {
-            _currentAddress = userData['location'];
+            _currentAddress = userData['location'];                            // 현재 위치 주소 설정
           });
         }
-        _calculateDistances();
+        _calculateDistances();                                                 // 거리 계산 메서드 호출
       }
     }
   }
 
-  Future<void> _calculateDistances() async {
+  Future<void> _calculateDistances() async {                                   // 음식점과 사용자 간 거리 계산 메서드
     if (_currentAddress == null) return;
 
     for (var item in allItems) {
@@ -135,15 +135,15 @@ class _SearchState extends State<search> {
             locations[0].latitude,
             locations[0].longitude,
           );
-          item.distance = distanceInMeters / 1000; // Convert to kilometers
+          item.distance = distanceInMeters / 1000;                             // 거리(km)로 변환
         }
       }
     }
 
-    _filterItems();
+    _filterItems();                                                            // 필터 메서드 호출
   }
 
-  void _filterItems() async {
+  void _filterItems() async {                                                  // 검색 및 위치 필터 메서드
     List<SearchDetails> results = allItems;
 
     if (_searchKeyword != null && _searchKeyword!.isNotEmpty) {
@@ -182,17 +182,17 @@ class _SearchState extends State<search> {
     }
   }
 
-  void _updateLocation(String location) {
+ void _updateLocation(String location) {                                       // 위치 키워드 업데이트 메서드
     _locationKeyword = location;
-    _filterItems();
+    _filterItems();                                                             // 필터 메서드 호출
   }
 
-  void _updateSearch(String search) {
+  void _updateSearch(String search) {                                           // 검색 키워드 업데이트 메서드
     _searchKeyword = search;
-    _filterItems();
+    _filterItems();                                                             // 필터 메서드 호출
   }
 
-  Future<void> _toggleFavorite(SearchDetails item) async {
+  Future<void> _toggleFavorite(SearchDetails item) async {                      // 즐겨찾기 토글 메서드
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final userFavoritesRef = FirebaseFirestore.instance
@@ -204,12 +204,12 @@ class _SearchState extends State<search> {
 
       final favoriteSnapshot = await favoriteDoc.get();
 
-      if (favoriteSnapshot.exists) {
+      if (favoriteSnapshot.exists) {                                            // 즐겨찾기 해제
         await favoriteDoc.delete();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('즐겨찾기가 해제되었습니다.')),
         );
-      } else {
+      } else {                                                                  // 즐겨찾기 추가
         await favoriteDoc.set({
           'restaurantId': item.id,
           'name': item.name,
@@ -230,7 +230,7 @@ class _SearchState extends State<search> {
     }
   }
 
-  Future<bool> _isFavorite(SearchDetails item) async {
+ Future<bool> _isFavorite(SearchDetails item) async {                          // 즐겨찾기 상태 확인 메서드
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final favoriteSnapshot = await FirebaseFirestore.instance
@@ -246,7 +246,7 @@ class _SearchState extends State<search> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {                                          // UI 빌드 메서드
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 70,
@@ -302,7 +302,7 @@ class _SearchState extends State<search> {
               Padding(
                 padding: const EdgeInsets.only(left: 20.0),
                 child: Text(
-                  '$_currentAddress',
+                  '$_currentAddress',                                        // 현재 위치 표시
                   style: TextStyle(
                     color: Colors.black,
                   ),
@@ -310,7 +310,7 @@ class _SearchState extends State<search> {
               ),
             SizedBox(height: 20),
             TextField(
-              onChanged: (value) => _updateSearch(value),
+              onChanged: (value) => _updateSearch(value),                       // 검색 키워드 변경 시 호출
               decoration: InputDecoration(
                 hintText: "음식점 검색",
                 prefixIcon: Icon(Icons.search),
@@ -324,14 +324,14 @@ class _SearchState extends State<search> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: filteredItems.isEmpty
+              child: filteredItems.isEmpty                                      // 필터된 아이템이 없을 때 메시지 표시
                   ? Center(child: Text('해당하는 음식점 또는 메뉴가 존재하지 않습니다'))
                   : ListView.builder(
                       itemCount: filteredItems.length,
                       itemBuilder: (context, index) {
                         var item = filteredItems[index];
                         return FutureBuilder<bool>(
-                          future: _isFavorite(item),
+                          future: _isFavorite(item),                             // 즐겨찾기 상태 확인
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -409,7 +409,7 @@ class _SearchState extends State<search> {
                                       ),
                                     ),
                                     SizedBox(height: 5),
-                                    if (item.distance != null)
+                                    if (item.distance != null)                // 거리 정보 표시
                                       RichText(
                                         text: TextSpan(
                                           style: TextStyle(color: Colors.black),
@@ -432,7 +432,7 @@ class _SearchState extends State<search> {
                                     isFavorite ? Icons.star : Icons.star_border,
                                     color: isFavorite ? Colors.yellow : null,
                                   ),
-                                  onPressed: () => _toggleFavorite(item),
+                                  onPressed: () => _toggleFavorite(item),      // 즐겨찾기 토글
                                 ),
                                 onTap: () {
                                   Navigator.pushNamed(
@@ -451,7 +451,7 @@ class _SearchState extends State<search> {
           ],
         ),
       ),
-      bottomNavigationBar: reservationBottom(),
+      bottomNavigationBar: reservationBottom(),                                 // 예약 하단바 포함
     );
   }
 }
