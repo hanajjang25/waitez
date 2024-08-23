@@ -5,14 +5,16 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
+// 메뉴 아이템 클래스 정의
 class MenuItem {
-  final String id;
-  final String name;
-  final int price;
-  final String description;
-  final String origin;
-  final String photoUrl;
+  final String id; // 메뉴 아이템 ID
+  final String name; // 메뉴 이름
+  final int price; // 메뉴 가격
+  final String description; // 메뉴 설명
+  final String origin; // 원산지
+  final String photoUrl; // 메뉴 사진 URL
 
+  // 생성자
   MenuItem({
     required this.id,
     required this.name,
@@ -22,6 +24,7 @@ class MenuItem {
     required this.photoUrl,
   });
 
+  // Firestore 문서로부터 MenuItem 객체를 생성하는 팩토리 메서드
   factory MenuItem.fromDocument(DocumentSnapshot document) {
     final data = document.data() as Map<String, dynamic>;
     return MenuItem(
@@ -35,8 +38,9 @@ class MenuItem {
   }
 }
 
+// 메뉴 수정 페이지 위젯
 class MenuEditDetail extends StatefulWidget {
-  final String menuItemId;
+  final String menuItemId; // 수정할 메뉴 아이템의 ID
 
   MenuEditDetail({required this.menuItemId});
 
@@ -45,21 +49,22 @@ class MenuEditDetail extends StatefulWidget {
 }
 
 class _MenuEditDetailState extends State<MenuEditDetail> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _originController = TextEditingController();
-  File? _imageFile;
-  String _photoUrl = '';
-  bool _isLoading = true;
+  final _formKey = GlobalKey<FormState>(); // 폼 검증을 위한 GlobalKey
+  final TextEditingController _nameController = TextEditingController(); // 메뉴 이름 입력 컨트롤러
+  final TextEditingController _priceController = TextEditingController(); // 메뉴 가격 입력 컨트롤러
+  final TextEditingController _descriptionController = TextEditingController(); // 메뉴 설명 입력 컨트롤러
+  final TextEditingController _originController = TextEditingController(); // 원산지 입력 컨트롤러
+  File? _imageFile; // 선택한 이미지 파일
+  String _photoUrl = ''; // 메뉴 사진 URL
+  bool _isLoading = true; // 로딩 상태 표시
 
   @override
   void initState() {
     super.initState();
-    _loadMenuItem();
+    _loadMenuItem(); // 메뉴 아이템 로드
   }
 
+  // Firestore에서 메뉴 아이템 데이터를 로드하는 함수
   Future<void> _loadMenuItem() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -92,7 +97,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
               _descriptionController.text = menuItem.description;
               _originController.text = menuItem.origin;
               _photoUrl = menuItem.photoUrl;
-              _isLoading = false;
+              _isLoading = false; // 로딩 완료
             });
           }
         }
@@ -100,17 +105,19 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
     }
   }
 
+  // 갤러리에서 이미지 선택 함수
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _imageFile = File(pickedFile.path); // 선택한 파일을 설정
       });
     }
   }
 
+  // 선택한 이미지를 Firebase Storage에 업로드하고 URL을 반환하는 함수
   Future<String> _uploadImage(File image) async {
     try {
       final storageRef = FirebaseStorage.instance.ref();
@@ -124,16 +131,19 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
     }
   }
 
+  // 한국어 유효성 검사 함수
   bool _isValidKorean(String value) {
     final koreanRegex = RegExp(r'^[가-힣\s]+$');
     return koreanRegex.hasMatch(value);
   }
 
+  // 원산지 유효성 검사 함수 (한국어와 특수문자 허용)
   bool _isValidOrigin(String value) {
     final originRegex = RegExp(r'^[가-힣\s:,]+$');
     return originRegex.hasMatch(value);
   }
 
+  // 메뉴 수정 저장 함수
   Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
       final user = FirebaseAuth.instance.currentUser;
@@ -156,6 +166,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
             if (restaurantQuery.docs.isNotEmpty) {
               final restaurantDoc = restaurantQuery.docs.first.reference;
 
+              // 이미지 파일이 선택된 경우 업로드
               if (_imageFile != null) {
                 _photoUrl = await _uploadImage(_imageFile!);
                 if (_photoUrl.isEmpty) {
@@ -166,6 +177,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                 }
               }
 
+              // Firestore에 메뉴 정보 업데이트
               await restaurantDoc
                   .collection('menus')
                   .doc(widget.menuItemId)
@@ -205,6 +217,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
     }
   }
 
+  // 메뉴 삭제 함수
   Future<void> _delete() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -259,6 +272,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
     }
   }
 
+  // 메뉴 삭제 확인 다이얼로그 표시 함수
   void _showDeleteConfirmationDialog() {
     showDialog(
       context: context,
@@ -274,7 +288,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _delete();
+                _delete(); // 삭제 함수 호출
               },
               child: Text('삭제'),
             ),
@@ -292,7 +306,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
           title: Text('메뉴 수정'),
         ),
         body: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(), // 로딩 인디케이터
         ),
       );
     }
@@ -315,7 +329,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Form(
-            key: _formKey,
+            key: _formKey, // 폼 검증을 위한 키 설정
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -334,11 +348,11 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                 SizedBox(height: 20),
                 Container(
                     width: 500,
-                    child: Divider(color: Colors.black, thickness: 2.0)),
+                    child: Divider(color: Colors.black, thickness: 2.0)), // 구분선
                 SizedBox(height: 20),
                 Center(
                   child: GestureDetector(
-                    onTap: _pickImage,
+                    onTap: _pickImage, // 이미지 선택 함수 호출
                     child: Container(
                       width: 358,
                       height: 201,
@@ -376,9 +390,9 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                   ),
                 ),
                 TextFormField(
-                  controller: _nameController,
+                  controller: _nameController, // 메뉴 이름 입력 컨트롤러
                   decoration: InputDecoration(),
-                  enabled: false,
+                  enabled: false, // 메뉴명은 수정 불가
                 ),
                 SizedBox(height: 50),
                 Text(
@@ -392,11 +406,11 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                   ),
                 ),
                 TextFormField(
-                  controller: _priceController,
+                  controller: _priceController, // 가격 입력 컨트롤러
                   decoration: InputDecoration(
                     suffixText: '원',
                   ),
-                  keyboardType: TextInputType.number,
+                  keyboardType: TextInputType.number, // 숫자 입력 타입
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return '가격을 입력해주세요';
@@ -423,7 +437,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                   ),
                 ),
                 TextFormField(
-                  controller: _descriptionController,
+                  controller: _descriptionController, // 설명 입력 컨트롤러
                   decoration: InputDecoration(),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -453,7 +467,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                   ),
                 ),
                 TextFormField(
-                  controller: _originController,
+                  controller: _originController, // 원산지 입력 컨트롤러
                   decoration: InputDecoration(),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -472,7 +486,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton(
-                    onPressed: _showDeleteConfirmationDialog,
+                    onPressed: _showDeleteConfirmationDialog, // 메뉴 삭제 확인 다이얼로그 표시
                     child: Text(
                       '메뉴 삭제',
                       style: TextStyle(
@@ -489,7 +503,7 @@ class _MenuEditDetailState extends State<MenuEditDetail> {
                 ),
                 SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: _save,
+                  onPressed: _save, // 메뉴 저장 함수 호출
                   child: Text('수정'),
                 ),
               ],
