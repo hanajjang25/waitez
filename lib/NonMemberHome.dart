@@ -15,41 +15,41 @@ class nonMemberHome extends StatelessWidget {
     // Scaffold는 기본적인 화면 레이아웃을 제공하는 Flutter 위젯.
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(70.0), // 앱 바의 높이를 70.0으로 설정.
+        preferredSize: Size.fromHeight(70.0),     // 앱 바의 높이를 70.0으로 설정.
         child: AppBar(
-          automaticallyImplyLeading: false, // 뒤로가기 버튼을 자동으로 추가하지 않음.
-          backgroundColor: Colors.white, // 앱 바의 배경색을 흰색으로 설정.
-          toolbarHeight: 100, // 툴바의 높이를 100으로 설정.
+          automaticallyImplyLeading: false,       // 뒤로가기 버튼을 자동으로 추가하지 않음.
+          backgroundColor: Colors.white,          // 앱 바의 배경색을 흰색으로 설정.
+          toolbarHeight: 100,                     // 툴바의 높이를 100으로 설정.
           title: Text(
-            'waitez', // 앱 바의 제목 텍스트를 'waitez'로 설정.
+            'waitez',                             // 앱 바의 제목 텍스트를 'waitez'로 설정.
             style: TextStyle(
-              color: Color(0xFF1C1C21), // 텍스트 색상을 설정.
-              fontSize: 18, // 텍스트 크기를 18로 설정.
-              fontFamily: 'Epilogue', // 폰트를 'Epilogue'로 설정.
-              fontWeight: FontWeight.w700, // 텍스트의 굵기를 설정.
-              height: 0.07, // 텍스트의 줄 간격을 설정.
-              letterSpacing: -0.27, // 글자 간격을 설정.
+              color: Color(0xFF1C1C21),           // 텍스트 색상을 설정.
+              fontSize: 18,                       // 텍스트 크기를 18로 설정.
+              fontFamily: 'Epilogue',             // 폰트를 'Epilogue'로 설정.
+              fontWeight: FontWeight.w700,        // 텍스트의 굵기를 설정.
+              height: 0.07,                       // 텍스트의 줄 간격을 설정.
+              letterSpacing: -0.27,               // 글자 간격을 설정.
             ),
-          ), // 타이틀 설정 끝.
-          centerTitle: true, // 타이틀을 앱 바의 중앙에 정렬.
+          ),    
+          centerTitle: true,                      // 타이틀을 앱 바의 중앙에 정렬.
           actions: [
-            // 앱 바의 우측에 위치한 액션 버튼들.
+                                                  // 앱 바의 우측에 위치한 액션 버튼들.
             IconButton(
-              onPressed: () {}, // 새로고침 아이콘이 눌렸을 때의 동작. (현재 아무 동작도 하지 않음)
-              icon: Icon(Icons.refresh), // 새로고침 아이콘을 설정.
+              onPressed: () {},                   // 새로고침 아이콘이 눌렸을 때의 동작. (현재 아무 동작도 하지 않음)
+              icon: Icon(Icons.refresh),          // 새로고침 아이콘을 설정.
             ),
             IconButton(
                 onPressed: () {
                   Navigator.pushNamed(context, '/noti'); // 알림 아이콘을 눌렀을 때 '/noti' 라우트로 이동.
                 },
-                icon: Icon(Icons.notifications) // 알림 아이콘을 설정.
+                icon: Icon(Icons.notifications)   // 알림 아이콘을 설정.
             )
           ],
         ),
       ),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(16.0), // 모든 방향에서 16px의 패딩을 추가.
+          padding: const EdgeInsets.all(16.0),     // 모든 방향에서 16px의 패딩을 추가.
           child: Column(
             children: [
               GestureDetector(
@@ -57,26 +57,26 @@ class nonMemberHome extends StatelessWidget {
                   Navigator.pushNamed(context, '/search'); // 검색창을 눌렀을 때 '/search' 라우트로 이동.
                 },
                 child: Container(
-                  width: screenWidth * 0.9, // 화면 너비의 90%를 사용하여 컨테이너의 너비를 설정.
+                  width: screenWidth * 0.9,        // 화면 너비의 90%를 사용하여 컨테이너의 너비를 설정.
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // 수평으로 16px, 수직으로 12px의 패딩 추가.
                   decoration: ShapeDecoration(
-                    color: Color(0xFFEDEFF2), // 배경색을 설정.
+                    color: Color(0xFFEDEFF2),      // 배경색을 설정.
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12), // 모서리를 둥글게 설정.
                     ),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.search), // 검색 아이콘을 추가.
-                      SizedBox(width: 12), // 아이콘과 텍스트 사이에 12px 간격을 추가.
+                      Icon(Icons.search),          // 검색 아이콘을 추가.
+                      SizedBox(width: 12),         // 아이콘과 텍스트 사이에 12px 간격을 추가.
                       Text(
-                        '검색', // '검색'이라는 텍스트를 추가.
+                        '검색',                     // '검색'이라는 텍스트를 추가.
                         style: TextStyle(
                           color: Color(0xFF3D3F49), // 텍스트 색상을 설정.
-                          fontSize: 16, // 텍스트 크기를 설정.
-                          fontFamily: 'Epilogue', // 폰트를 'Epilogue'로 설정.
+                          fontSize: 16,            // 텍스트 크기를 설정.
+                          fontFamily: 'Epilogue',  // 폰트를 'Epilogue'로 설정.
                           fontWeight: FontWeight.w400, // 텍스트의 굵기를 설정.
-                          height: 1.3, // 텍스트 줄 간격을 설정.
+                          height: 1.3,            // 텍스트 줄 간격을 설정.
                         ),
                       ),
                     ],
