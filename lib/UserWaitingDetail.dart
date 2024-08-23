@@ -8,14 +8,14 @@ import 'UserCart.dart'; // Import the Cart page
 import 'notification.dart';
 
 class waitingDetail extends StatefulWidget {
-  final String restaurantName;
-  final int queueNumber;
-  final String reservationId; // Add reservationId as a parameter
+  final String restaurantName;  // 음식점 이름
+  final int queueNumber;  // 대기 번호
+  final String reservationId;  // 예약 ID
 
   waitingDetail({
-    required this.restaurantName,
-    required this.queueNumber,
-    required this.reservationId, // Initialize reservationId
+    required this.restaurantName,  // 음식점 이름 초기화
+    required this.queueNumber,  // 대기 번호 초기화
+    required this.reservationId,  // 예약 ID 초기화
   });
 
   @override
@@ -23,33 +23,32 @@ class waitingDetail extends StatefulWidget {
 }
 
 class _waitingDetailState extends State<waitingDetail> {
-  bool isRestaurantSelected = true;
-  bool isFavorite = false;
-  String? restaurantAddress;
-  String?
-      restaurantPhotoUrl; // Add a variable to store the restaurant photo URL
-  List<Map<String, dynamic>> orderItems = [];
-  int totalAmount = 0;
-  LatLng? restaurantLocation; // Add a variable to store the restaurant location
-  int isTakeout = 0; // Add a flag for takeout
-  int averageWaitTime = 0; // Add a variable for average wait time
+  bool isRestaurantSelected = true;  // '음식점' 탭이 선택되었는지 여부
+  bool isFavorite = false;  // 즐겨찾기 여부
+  String? restaurantAddress;  // 음식점 주소
+  String? restaurantPhotoUrl;  // 음식점 사진 URL
+  List<Map<String, dynamic>> orderItems = [];  // 주문한 메뉴 아이템 목록
+  int totalAmount = 0;  // 주문한 총 금액
+  LatLng? restaurantLocation;  // 음식점 위치 (위도, 경도)
+  int isTakeout = 0;  // 포장 여부 (0: 매장, 1: 포장)
+  int averageWaitTime = 0;  // 평균 대기 시간
 
   static const CameraPosition initialCameraPosition = CameraPosition(
-    target: LatLng(37.7749, -122.4194),
-    zoom: 14.0,
+    target: LatLng(37.7749, -122.4194),  // 초기 맵 위치 (샌프란시스코)
+    zoom: 14.0,  // 줌 레벨
   );
 
   @override
   void initState() {
     super.initState();
-    _fetchRestaurantDetails();
-    _fetchOrderDetails();
-    _fetchReservationType(); // Fetch reservation type
+    _fetchRestaurantDetails();  // 음식점 상세 정보 불러오기
+    _fetchOrderDetails();  // 주문 정보 불러오기
+    _fetchReservationType();  // 예약 타입 불러오기
   }
-
+  
   Future<void> _fetchRestaurantDetails() async {
     try {
-      // Fetch restaurant address, photo URL, and average wait time from Firestore
+      // Firestore에서 음식점 정보 불러오기
       var restaurantSnapshot = await FirebaseFirestore.instance
           .collection('restaurants')
           .where('restaurantName', isEqualTo: widget.restaurantName)
@@ -59,37 +58,34 @@ class _waitingDetailState extends State<waitingDetail> {
       if (restaurantSnapshot.docs.isNotEmpty) {
         var restaurantData = restaurantSnapshot.docs.first.data();
         setState(() {
-          restaurantAddress = restaurantData['location'];
-          restaurantPhotoUrl =
-              restaurantData['photoUrl']; // Fetch the photo URL
-          averageWaitTime = restaurantData['averageWaitTime'];
+          restaurantAddress = restaurantData['location'];  // 음식점 주소 설정
+          restaurantPhotoUrl = restaurantData['photoUrl'];  // 음식점 사진 URL 설정
+          averageWaitTime = restaurantData['averageWaitTime'];  // 평균 대기 시간 설정
         });
 
-        // Geocode the address to get the coordinates
-        List<Location> locations =
-            await locationFromAddress(restaurantAddress!);
+        // 주소를 위도, 경도로 변환하여 지도에 표시
+        List<Location> locations = await locationFromAddress(restaurantAddress!);
         if (locations.isNotEmpty) {
           setState(() {
-            restaurantLocation =
-                LatLng(locations.first.latitude, locations.first.longitude);
+            restaurantLocation = LatLng(locations.first.latitude, locations.first.longitude);
           });
         }
       } else {
         setState(() {
-          restaurantAddress = '주소를 찾을 수 없습니다.';
+          restaurantAddress = '주소를 찾을 수 없습니다.';  // 주소를 찾을 수 없을 경우 메시지 설정
         });
       }
     } catch (e) {
       print('Error fetching restaurant details: $e');
       setState(() {
-        restaurantAddress = '주소를 찾을 수 없습니다.';
+        restaurantAddress = '주소를 찾을 수 없습니다.';  // 오류 발생 시 메시지 설정
       });
     }
   }
 
   Future<void> _fetchOrderDetails() async {
     try {
-      // Fetch order details from Firestore
+      // Firestore에서 주문 정보 불러오기
       var orderSnapshot = await FirebaseFirestore.instance
           .collection('reservations')
           .doc(widget.reservationId)
@@ -108,30 +104,26 @@ class _waitingDetailState extends State<waitingDetail> {
 
           if (menuItem != null) {
             if (menuItem['price'] != null) {
-              price = menuItem['price'] is int
-                  ? menuItem['price']
-                  : int.tryParse(menuItem['price'].toString()) ?? 0;
+              price = menuItem['price'] is int ? menuItem['price'] : int.tryParse(menuItem['price'].toString()) ?? 0;
             }
 
             if (item['quantity'] != null) {
-              quantity = item['quantity'] is int
-                  ? item['quantity']
-                  : int.tryParse(item['quantity'].toString()) ?? 0;
+              quantity = item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 0;
             }
 
             items.add({
-              'name': menuItem['menuName'] ?? 'Unknown',
-              'price': price,
-              'quantity': quantity,
+              'name': menuItem['menuName'] ?? 'Unknown',  // 메뉴 이름 설정
+              'price': price,  // 가격 설정
+              'quantity': quantity,  // 수량 설정
             });
 
-            total += price * quantity;
+            total += price * quantity;  // 총 금액 계산
           }
         }
 
         setState(() {
-          orderItems = items;
-          totalAmount = total;
+          orderItems = items;  // 주문 아이템 목록 설정
+          totalAmount = total;  // 총 금액 설정
         });
       }
     } catch (e) {
@@ -141,7 +133,7 @@ class _waitingDetailState extends State<waitingDetail> {
 
   Future<void> _fetchReservationType() async {
     try {
-      // Fetch reservation type from Firestore
+      // Firestore에서 예약 타입 불러오기
       var reservationSnapshot = await FirebaseFirestore.instance
           .collection('reservations')
           .doc(widget.reservationId)
@@ -149,7 +141,7 @@ class _waitingDetailState extends State<waitingDetail> {
 
       if (reservationSnapshot.exists) {
         setState(() {
-          isTakeout = reservationSnapshot.data()!['type'];
+          isTakeout = reservationSnapshot.data()!['type'];  // 예약 타입 설정 (0: 매장, 1: 포장)
         });
       }
     } catch (e) {
@@ -159,7 +151,7 @@ class _waitingDetailState extends State<waitingDetail> {
 
   void toggleFavorite() {
     setState(() {
-      isFavorite = !isFavorite;
+      isFavorite = !isFavorite;  // 즐겨찾기 상태 토글
     });
   }
 
@@ -305,7 +297,7 @@ class _waitingDetailState extends State<waitingDetail> {
                       MaterialPageRoute(
                         builder: (context) => InfoInputScreen(
                             reservationId: widget
-                                .reservationId), // Pass reservationId to InfoInputScreen
+                                .reservationId), // InfoInputScreen에 예약 ID 전달
                       ),
                     );
                   },
@@ -333,7 +325,7 @@ class _waitingDetailState extends State<waitingDetail> {
                             context,
                             MaterialPageRoute(
                               builder: (context) =>
-                                  cart(), // Pass reservationId if needed
+                                  cart(), // 장바구니 페이지로 이동
                             ),
                           );
                         },
@@ -356,7 +348,7 @@ class _waitingDetailState extends State<waitingDetail> {
                     foregroundColor: Colors.blue,
                     side: BorderSide(color: Colors.blue),
                   ),
-                  onPressed: showCancelDialog,
+                  onPressed: showCancelDialog,  // 예약 취소 다이얼로그 표시
                 ),
               ],
             ),
@@ -572,7 +564,7 @@ class _waitingDetailState extends State<waitingDetail> {
 }
 
 class InfoInputScreen extends StatefulWidget {
-  final String reservationId;
+  final String reservationId;  // 예약 ID
 
   InfoInputScreen({required this.reservationId});
 
@@ -581,9 +573,9 @@ class InfoInputScreen extends StatefulWidget {
 }
 
 class _InfoInputScreenState extends State<InfoInputScreen> {
-  String nickname = '';
-  int numberOfPeople = 1;
-  bool isTakeout = false;
+  String nickname = '';  // 닉네임
+  int numberOfPeople = 1;  // 인원수
+  bool isTakeout = false;  // 포장 여부
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _altPhoneController = TextEditingController();
@@ -591,12 +583,12 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchReservationDetails();
+    _fetchReservationDetails();  // 예약 상세 정보 불러오기
   }
 
   Future<void> _fetchReservationDetails() async {
     try {
-      // Fetch reservation details from Firestore
+      // Firestore에서 예약 상세 정보 불러오기
       var reservationSnapshot = await FirebaseFirestore.instance
           .collection('reservations')
           .doc(widget.reservationId)
@@ -605,12 +597,12 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
       if (reservationSnapshot.exists) {
         var data = reservationSnapshot.data()!;
         setState(() {
-          nickname = data['nickname'];
-          numberOfPeople = data['numberOfPeople'];
-          isTakeout = data['type'] == 2; // Assuming type 2 means takeout
-          _nicknameController.text = nickname;
-          _phoneController.text = data['phone'] ?? '';
-          _altPhoneController.text = data['altPhone'] ?? '';
+          nickname = data['nickname'];  // 닉네임 설정
+          numberOfPeople = data['numberOfPeople'];  // 인원수 설정
+          isTakeout = data['type'] == 2;  // 포장 여부 설정 (2: 포장)
+          _nicknameController.text = nickname;  // 닉네임 텍스트 필드 설정
+          _phoneController.text = data['phone'] ?? '';  // 전화번호 텍스트 필드 설정
+          _altPhoneController.text = data['altPhone'] ?? '';  // 보조 전화번호 텍스트 필드 설정
         });
       }
     } catch (e) {
@@ -655,7 +647,7 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
             ),
             TextField(
               controller: _nicknameController,
-              enabled: false, // Disable editing
+              enabled: false, // 편집 비활성화
               decoration: InputDecoration(),
             ),
             SizedBox(height: 20),
@@ -711,7 +703,7 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
             ),
             TextField(
               controller: _phoneController,
-              enabled: false, // Disable editing
+              enabled: false, // 편집 비활성화
               decoration: InputDecoration(),
             ),
             SizedBox(height: 30),
@@ -731,7 +723,7 @@ class _InfoInputScreenState extends State<InfoInputScreen> {
             Center(
               child: ElevatedButton(
                 onPressed: () {
-                  // Update reservation details in Firestore
+                  // Firestore에서 예약 상세 정보 업데이트
                   FirebaseFirestore.instance
                       .collection('reservations')
                       .doc(widget.reservationId)
