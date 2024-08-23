@@ -3,58 +3,56 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SignUp extends StatefulWidget {
+class SignUp extends StatefulWidget {                              // 회원가입 화면을 나타내는 StatefulWidget
   @override
-  _SignUpState createState() => _SignUpState();
+  _SignUpState createState() => _SignUpState();                   // _SignUpState 상태 클래스 생성
 }
 
-class _SignUpState extends State<SignUp> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class _SignUpState extends State<SignUp> {                         // _SignUpState 클래스 정의
+  final FirebaseAuth _auth = FirebaseAuth.instance;                // FirebaseAuth 인스턴스 생성
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Firestore 인스턴스 생성
 
-  final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _passwordConfirmController =
-      TextEditingController();
-  final TextEditingController _resNumController = TextEditingController();
-  final TextEditingController _phoneNumController = TextEditingController();
+  final TextEditingController _nicknameController = TextEditingController();  // 닉네임 입력 필드의 컨트롤러
+  final TextEditingController _emailController = TextEditingController();     // 이메일 입력 필드의 컨트롤러
+  final TextEditingController _passwordController = TextEditingController();  // 비밀번호 입력 필드의 컨트롤러
+  final TextEditingController _passwordConfirmController = TextEditingController(); // 비밀번호 확인 필드의 컨트롤러
+  final TextEditingController _resNumController = TextEditingController();    // 사업자 등록번호 필드의 컨트롤러
+  final TextEditingController _phoneNumController = TextEditingController();  // 전화번호 입력 필드의 컨트롤러
 
-  final FocusNode _nicknameFocusNode = FocusNode();
-  final FocusNode _emailFocusNode = FocusNode();
-  final FocusNode _passwordFocusNode = FocusNode();
-  final FocusNode _passwordConfirmFocusNode = FocusNode();
-  final FocusNode _resNumFocusNode = FocusNode();
-  final FocusNode _phoneNumFocusNode = FocusNode();
+  final FocusNode _nicknameFocusNode = FocusNode();               // 닉네임 입력 필드의 포커스 노드
+  final FocusNode _emailFocusNode = FocusNode();                  // 이메일 입력 필드의 포커스 노드
+  final FocusNode _passwordFocusNode = FocusNode();               // 비밀번호 입력 필드의 포커스 노드
+  final FocusNode _passwordConfirmFocusNode = FocusNode();        // 비밀번호 확인 필드의 포커스 노드
+  final FocusNode _resNumFocusNode = FocusNode();                 // 사업자 등록번호 필드의 포커스 노드
+  final FocusNode _phoneNumFocusNode = FocusNode();               // 전화번호 입력 필드의 포커스 노드
 
-  final ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();  // 스크롤 제어를 위한 컨트롤러
 
-  bool _passwordsMatch = true;
-  bool _emailVerified = false;
-  User? _currentUser;
+  bool _passwordsMatch = true;                                    // 비밀번호 일치 여부를 확인하는 변수
+  bool _emailVerified = false;                                    // 이메일 인증 여부를 확인하는 변수
+  User? _currentUser;                                              // 현재 사용자 정보를 저장하는 변수
 
-  void _checkPasswordsMatch() {
+  void _checkPasswordsMatch() {                                   // 비밀번호와 비밀번호 확인 필드의 값이 일치하는지 확인
     setState(() {
-      _passwordsMatch =
-          _passwordController.text == _passwordConfirmController.text;
+      _passwordsMatch = _passwordController.text == _passwordConfirmController.text;
     });
   }
 
-  Future<void> _sendEmailVerification(User user) async {
+  Future<void> _sendEmailVerification(User user) async {          // 이메일 인증을 위한 메소드
     try {
       await user.sendEmailVerification();
-      _showErrorDialog("이메일 전송", "이메일을 확인하고 인증을 완료해주세요.");
+      _showErrorDialog("이메일 전송", "이메일을 확인하고 인증을 완료해주세요."); // 인증 이메일 전송 성공 시 다이얼로그 표시
     } catch (e) {
-      _showErrorDialog("오류", "이메일 인증 중 오류가 발생했습니다: $e");
+      _showErrorDialog("오류", "이메일 인증 중 오류가 발생했습니다: $e");  // 인증 이메일 전송 실패 시 오류 다이얼로그 표시
     }
   }
 
-  Future<bool> _isEmailInUse(String email) async {
+  Future<bool> _isEmailInUse(String email) async {                // 이메일이 이미 사용 중인지 확인하는 메소드
     List<String> methods = await _auth.fetchSignInMethodsForEmail(email);
     return methods.isNotEmpty;
   }
 
-  Future<bool> _isNicknameInUse(String nickname) async {
+  Future<bool> _isNicknameInUse(String nickname) async {          // 닉네임이 이미 사용 중인지 확인하는 메소드
     QuerySnapshot querySnapshot = await _firestore
         .collection('users')
         .where('nickname', isEqualTo: nickname)
@@ -62,7 +60,7 @@ class _SignUpState extends State<SignUp> {
     return querySnapshot.docs.isNotEmpty;
   }
 
-  Future<bool> _isPhoneNumInUse(String phoneNum) async {
+  Future<bool> _isPhoneNumInUse(String phoneNum) async {          // 전화번호가 이미 사용 중인지 확인하는 메소드
     QuerySnapshot querySnapshot = await _firestore
         .collection('users')
         .where('phoneNum', isEqualTo: phoneNum)
@@ -70,7 +68,7 @@ class _SignUpState extends State<SignUp> {
     return querySnapshot.docs.isNotEmpty;
   }
 
-  Future<String> emailSignUp({
+  Future<String> emailSignUp({                                    // 회원가입 메소드
     required String nickname,
     required String email,
     required String password,
@@ -78,13 +76,13 @@ class _SignUpState extends State<SignUp> {
     String? resNum,
   }) async {
     try {
-      // Check if nickname already exists
+      // 닉네임 중복 확인
       bool nicknameInUse = await _isNicknameInUse(nickname);
       if (nicknameInUse) {
-        return "nickname-already-in-use"; // Nickname already exists
+        return "nickname-already-in-use"; // 닉네임이 이미 존재하는 경우
       }
 
-      // Check if business registration number already exists
+      // 사업자등록번호 중복 확인
       if (resNum != null && resNum.isNotEmpty) {
         QuerySnapshot querySnapshot = await _firestore
             .collection('users')
@@ -92,25 +90,24 @@ class _SignUpState extends State<SignUp> {
             .get();
 
         if (querySnapshot.docs.isNotEmpty) {
-          return "resNum-exists"; // Business registration number already exists
+          return "resNum-exists"; // 사업자등록번호가 이미 존재하는 경우
         }
       }
 
-      // Check if email already exists
+      // 이메일 중복 확인
       bool emailInUse = await _isEmailInUse(email);
       if (emailInUse) {
-        return "email-already-in-use"; // Email already exists
+        return "email-already-in-use"; // 이메일이 이미 존재하는 경우
       }
 
-      // Check if phone number already exists
+      // 전화번호 중복 확인
       bool phoneNumInUse = await _isPhoneNumInUse(phoneNum);
       if (phoneNumInUse) {
-        return "phoneNum-already-in-use"; // Phone number already exists
+        return "phoneNum-already-in-use"; // 전화번호가 이미 존재하는 경우
       }
 
-      // Create user with email and password
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
+      // 이메일과 비밀번호로 사용자 생성
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -118,7 +115,7 @@ class _SignUpState extends State<SignUp> {
       User? user = userCredential.user;
 
       if (user != null) {
-        // Save user data to Firestore
+        // Firestore에 사용자 정보 저장
         await _firestore.collection('users').doc(user.uid).set({
           'nickname': nickname,
           'email': email,
@@ -126,18 +123,19 @@ class _SignUpState extends State<SignUp> {
           'resNum': resNum,
         });
 
-        return "success"; // Registration successful
+        return "success"; // 회원가입 성공
       } else {
-        return "fail"; // Registration failed
+        return "fail"; // 회원가입 실패
       }
     } on FirebaseAuthException catch (e) {
-      return "fail"; // Other errors
+      return "fail"; // Firebase 인증 관련 오류 처리
     } catch (e) {
-      return "fail"; // General error
+      return "fail"; // 일반 오류 처리
     }
   }
 
-  void _showErrorDialog(String title, String message) {
+
+ void _showErrorDialog(String title, String message) {           // 오류 메시지를 표시하는 다이얼로그
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -155,29 +153,29 @@ class _SignUpState extends State<SignUp> {
     );
   }
 
-  bool _validateNickname(String nickname) {
+  bool _validateNickname(String nickname) {                       // 닉네임 유효성 검사
     final RegExp nicknameExp = RegExp(r'^[가-힣]+$');
     return nicknameExp.hasMatch(nickname) &&
         nickname.length >= 2 &&
         nickname.length <= 7;
   }
 
-  bool _validatePhoneNum(String phoneNum) {
+  bool _validatePhoneNum(String phoneNum) {                       // 전화번호 유효성 검사
     final RegExp phoneExp = RegExp(r'^010-\d{4}-\d{4}$');
     return phoneExp.hasMatch(phoneNum);
   }
 
-  bool _validatePassword(String password) {
+  bool _validatePassword(String password) {                       // 비밀번호 유효성 검사
     final RegExp passwordExp = RegExp(r'^(?=.*[a-z]).{6,10}$');
     return passwordExp.hasMatch(password);
   }
 
-  bool _validateResNum(String resNum) {
+  bool _validateResNum(String resNum) {                           // 사업자등록번호 유효성 검사
     final RegExp resNumExp = RegExp(r'^\d*$');
     return resNumExp.hasMatch(resNum);
   }
 
-  bool _isFormValid() {
+  bool _isFormValid() {                                           // 모든 입력값이 유효한지 확인하는 메소드
     bool nicknameValid = _validateNickname(_nicknameController.text);
     bool passwordValid = _validatePassword(_passwordController.text);
     bool phoneNumValid = _validatePhoneNum(_phoneNumController.text);
@@ -197,7 +195,7 @@ class _SignUpState extends State<SignUp> {
         emailVerified;
   }
 
-  void _scrollToFocusedNode(FocusNode focusNode) {
+  void _scrollToFocusedNode(FocusNode focusNode) {                 // 포커스된 입력 필드로 자동 스크롤
     focusNode.addListener(() {
       if (focusNode.hasFocus) {
         _scrollController.animateTo(
@@ -209,66 +207,67 @@ class _SignUpState extends State<SignUp> {
     });
   }
 
+
   @override
   void initState() {
     super.initState();
-    _scrollToFocusedNode(_nicknameFocusNode);
-    _scrollToFocusedNode(_emailFocusNode);
-    _scrollToFocusedNode(_passwordFocusNode);
-    _scrollToFocusedNode(_passwordConfirmFocusNode);
-    _scrollToFocusedNode(_resNumFocusNode);
-    _scrollToFocusedNode(_phoneNumFocusNode);
+    _scrollToFocusedNode(_nicknameFocusNode);                      // 닉네임 입력 필드 포커스 시 스크롤
+    _scrollToFocusedNode(_emailFocusNode);                         // 이메일 입력 필드 포커스 시 스크롤
+    _scrollToFocusedNode(_passwordFocusNode);                      // 비밀번호 입력 필드 포커스 시 스크롤
+    _scrollToFocusedNode(_passwordConfirmFocusNode);               // 비밀번호 확인 필드 포커스 시 스크롤
+    _scrollToFocusedNode(_resNumFocusNode);                        // 사업자등록번호 필드 포커스 시 스크롤
+    _scrollToFocusedNode(_phoneNumFocusNode);                      // 전화번호 입력 필드 포커스 시 스크롤
   }
 
   @override
   void dispose() {
-    _nicknameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _passwordConfirmController.dispose();
-    _resNumController.dispose();
-    _phoneNumController.dispose();
+    _nicknameController.dispose();                                 // 닉네임 컨트롤러 메모리 해제
+    _emailController.dispose();                                    // 이메일 컨트롤러 메모리 해제
+    _passwordController.dispose();                                 // 비밀번호 컨트롤러 메모리 해제
+    _passwordConfirmController.dispose();                          // 비밀번호 확인 컨트롤러 메모리 해제
+    _resNumController.dispose();                                   // 사업자등록번호 컨트롤러 메모리 해제
+    _phoneNumController.dispose();                                 // 전화번호 컨트롤러 메모리 해제
 
-    _nicknameFocusNode.dispose();
-    _emailFocusNode.dispose();
-    _passwordFocusNode.dispose();
-    _passwordConfirmFocusNode.dispose();
-    _resNumFocusNode.dispose();
-    _phoneNumFocusNode.dispose();
+    _nicknameFocusNode.dispose();                                  // 닉네임 포커스 노드 메모리 해제
+    _emailFocusNode.dispose();                                     // 이메일 포커스 노드 메모리 해제
+    _passwordFocusNode.dispose();                                  // 비밀번호 포커스 노드 메모리 해제
+    _passwordConfirmFocusNode.dispose();                           // 비밀번호 확인 포커스 노드 메모리 해제
+    _resNumFocusNode.dispose();                                    // 사업자등록번호 포커스 노드 메모리 해제
+    _phoneNumFocusNode.dispose();                                  // 전화번호 포커스 노드 메모리 해제
 
-    _scrollController.dispose();
+    _scrollController.dispose();                                   // 스크롤 컨트롤러 메모리 해제
 
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;          // 화면의 너비를 가져옴
+    final screenHeight = MediaQuery.of(context).size.height;        // 화면의 높이를 가져옴
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
-      body: SingleChildScrollView(
+      resizeToAvoidBottomInset: true,                               // 키보드에 의해 화면이 밀리지 않도록 설정
+      body: SingleChildScrollView(                                  // 화면을 스크롤 가능하게 설정
         controller: _scrollController,
         child: Container(
-          width: screenWidth,
-          height: screenHeight,
+          width: screenWidth,                                       // 화면의 전체 너비 사용
+          height: screenHeight,                                     // 화면의 전체 높이 사용
           child: Stack(
             children: [
               Positioned.fill(
                 child: Container(
-                  color: Colors.black.withOpacity(0.48), // 배경 색상 설정
+                  color: Colors.black.withOpacity(0.48),            // 배경 색상 설정
                 ),
               ),
               Positioned(
-                left: screenWidth * 0.05,
-                top: screenHeight * 0.1 + 200,
+                left: screenWidth * 0.05,                           // 좌측 여백 설정
+                top: screenHeight * 0.1 + 200,                      // 상단 여백 설정
                 child: Container(
-                  width: screenWidth * 0.9,
-                  height: screenHeight * 0.7,
+                  width: screenWidth * 0.9,                         // 화면의 90% 너비 사용
+                  height: screenHeight * 0.7,                       // 화면의 70% 높이 사용
                   decoration: BoxDecoration(
-                    color: Colors.white, // 배경 색상
-                    borderRadius: BorderRadius.circular(36), // 모서리 둥글게 처리
+                    color: Colors.white,                            // 배경 색상
+                    borderRadius: BorderRadius.circular(36),        // 모서리 둥글게 처리
                   ),
                   child: Column(children: [
                     SizedBox(height: 20),
@@ -698,7 +697,7 @@ class _SignUpState extends State<SignUp> {
   }
 }
 
-class PhoneNumberTextInputFormatter extends TextInputFormatter {
+class PhoneNumberTextInputFormatter extends TextInputFormatter {   // 전화번호 포맷팅을 위한 클래스
   @override
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
