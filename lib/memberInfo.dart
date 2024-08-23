@@ -1,86 +1,81 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/services.dart';
-import 'notification.dart';
-import 'UserHome.dart'; // UserHome 클래스를 import
+import 'package:flutter/material.dart';              
+import 'package:firebase_auth/firebase_auth.dart';        
+import 'package:cloud_firestore/cloud_firestore.dart';    
+import 'package:flutter/services.dart';                  
+import 'notification.dart';                              
+import 'UserHome.dart';                                 
 
-class memberInfo extends StatefulWidget {
+class memberInfo extends StatefulWidget {                   // 회원 정보 페이지의 StatefulWidget
   @override
-  _MemberInfoState createState() => _MemberInfoState();
+  _MemberInfoState createState() => _MemberInfoState();     // 상태 관리 클래스 생성
 }
 
-class _MemberInfoState extends State<memberInfo> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
-  final TextEditingController _businessNumberController =
-      TextEditingController();
+class _MemberInfoState extends State<memberInfo> {          // 상태 관리 클래스 정의
+  final FirebaseAuth _auth = FirebaseAuth.instance;         // FirebaseAuth 인스턴스 생성
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Firestore 인스턴스 생성
+  final TextEditingController _nicknameController = TextEditingController(); // 닉네임 입력 컨트롤러
+  final TextEditingController _emailController = TextEditingController();    // 이메일 입력 컨트롤러
+  final TextEditingController _phoneController = TextEditingController();    // 전화번호 입력 컨트롤러
+  final TextEditingController _passwordController = TextEditingController(); // 비밀번호 입력 컨트롤러
+  final TextEditingController _confirmPasswordController = TextEditingController(); // 비밀번호 확인 입력 컨트롤러
+  final TextEditingController _businessNumberController = TextEditingController();  // 사업자등록번호 입력 컨트롤러
 
-  bool _isPasswordObscured = true;
-  bool _isConfirmPasswordObscured = true;
+  bool _isPasswordObscured = true;                          // 비밀번호 가리기 여부 설정
+  bool _isConfirmPasswordObscured = true;                   // 비밀번호 확인 가리기 여부 설정
 
   @override
-  void initState() {
+  void initState() {                                         // 위젯 초기화 시 호출되는 메서드
     super.initState();
-    _loadUserInfo();
+    _loadUserInfo();                                         // 사용자 정보 불러오기
   }
 
-  Future<void> _loadUserInfo() async {
-    User? user = _auth.currentUser;
-    if (user != null) {
+  Future<void> _loadUserInfo() async {                       // 사용자 정보를 Firestore에서 불러오는 메서드
+    User? user = _auth.currentUser;                          // 현재 로그인된 사용자 가져오기
+    if (user != null) {                                      // 사용자가 존재하면
       try {
         DocumentSnapshot userDoc =
-            await _firestore.collection('users').doc(user.uid).get();
-        if (userDoc.exists) {
+            await _firestore.collection('users').doc(user.uid).get(); // Firestore에서 사용자 문서 가져오기
+        if (userDoc.exists) {                                // 문서가 존재하면
           Map<String, dynamic> userData =
-              userDoc.data() as Map<String, dynamic>;
-          setState(() {
-            _nicknameController.text = userData['nickname'] ?? '';
-            _emailController.text = userData['email'] ?? '';
-            _phoneController.text = userData['phoneNum'] ?? '';
-            _businessNumberController.text = userData['resNum'] ?? '';
+              userDoc.data() as Map<String, dynamic>;        // 문서 데이터를 Map으로 변환
+          setState(() {                                      // 상태 갱신
+            _nicknameController.text = userData['nickname'] ?? ''; // 닉네임 설정
+            _emailController.text = userData['email'] ?? '';        // 이메일 설정
+            _phoneController.text = userData['phoneNum'] ?? '';     // 전화번호 설정
+            _businessNumberController.text = userData['resNum'] ?? ''; // 사업자번호 설정
           });
         } else {
-          print('User document does not exist');
+          print('User document does not exist');             // 문서가 없을 경우 로그 출력
         }
       } catch (e) {
-        print('Failed to load user info: $e');
+        print('Failed to load user info: $e');               // 예외 발생 시 로그 출력
       }
     } else {
-      print('No user is signed in');
+      print('No user is signed in');                         // 로그인이 안된 경우 로그 출력
     }
   }
 
-  Future<void> _deleteUserAccount() async {
-    User? user = _auth.currentUser;
-    if (user != null) {
+  Future<void> _deleteUserAccount() async {                  // 사용자 계정을 삭제하는 메서드
+    User? user = _auth.currentUser;                          // 현재 사용자 가져오기
+    if (user != null) {                                      // 사용자가 존재하면
       try {
-        String userEmail = user.email!;
-        // Firebase Authentication에서 사용자 삭제
-        await user.delete();
-        // Firestore에서 이메일로 사용자 문서 삭제
+        String userEmail = user.email!;                      // 사용자의 이메일 가져오기
+        await user.delete();                                 // Firebase Authentication에서 사용자 삭제
         QuerySnapshot userSnapshot = await _firestore
             .collection('users')
             .where('email', isEqualTo: userEmail)
-            .get();
-        for (var doc in userSnapshot.docs) {
+            .get();                                          // Firestore에서 사용자 문서 검색
+        for (var doc in userSnapshot.docs) {                 // 검색된 문서 모두 삭제
           await _firestore.collection('users').doc(doc.id).delete();
         }
-        FlutterLocalNotification.showNotification(
+        FlutterLocalNotification.showNotification(           // 성공 알림 표시
           '회원탈퇴',
           '회원탈퇴가 성공적으로 처리되었습니다.',
         );
-        print('User account deleted');
-        // 회원탈퇴 후 로그인 화면으로 이동
-        Navigator.of(context).pushReplacementNamed('/login');
-      } catch (e) {
-        print('Failed to delete user account: $e');
+        print('User account deleted');                       // 성공 로그 출력
+        Navigator.of(context).pushReplacementNamed('/login'); // 로그인 화면으로 이동
+      } catch (e) {                                          // 오류 발생 시 처리
+        print('Failed to delete user account: $e');          // 오류 로그 출력
         if (e is FirebaseAuthException && e.code == 'requires-recent-login') {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('보안을 위해 최근 로그인이 필요합니다. 다시 로그인 후 시도해주세요.')),
@@ -94,83 +89,82 @@ class _MemberInfoState extends State<memberInfo> {
     }
   }
 
-  Future<void> _updateUserInfo() async {
-    if (_validateForm()) {
-      User? user = _auth.currentUser;
-      if (user != null) {
+  Future<void> _updateUserInfo() async {                     // 사용자 정보를 업데이트하는 메서드
+    if (_validateForm()) {                                   // 폼 검증
+      User? user = _auth.currentUser;                        // 현재 사용자 가져오기
+      if (user != null) {                                    // 사용자가 존재하면
         try {
-          Map<String, dynamic> updateData = {
+          Map<String, dynamic> updateData = {                // 업데이트할 데이터 생성
             'phoneNum': _phoneController.text,
             'resNum': _businessNumberController.text,
           };
 
-          if (_passwordController.text.isNotEmpty) {
-            await user.updatePassword(_passwordController.text);
+          if (_passwordController.text.isNotEmpty) {         // 비밀번호가 비어있지 않다면
+            await user.updatePassword(_passwordController.text); // 비밀번호 업데이트
           }
 
-          await _firestore.collection('users').doc(user.uid).update(updateData);
+          await _firestore.collection('users').doc(user.uid).update(updateData); // Firestore 업데이트
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('정보가 성공적으로 업데이트되었습니다.')),
           );
 
-          // 모든 작업이 완료되면 UserHome 페이지로 이동
-          Navigator.pushReplacement(
+          Navigator.pushReplacement(                          // 업데이트 완료 후 UserHome으로 이동
             context,
             MaterialPageRoute(builder: (context) => home()),
           );
         } catch (e) {
-          print('Failed to update user info: $e');
+          print('Failed to update user info: $e');           // 오류 발생 시 로그 출력
         }
       }
     }
   }
 
-  bool _validateForm() {
-    if (!_validatePhone(_phoneController.text)) {
+  bool _validateForm() {                                     // 폼의 유효성을 검사하는 메서드
+    if (!_validatePhone(_phoneController.text)) {            // 전화번호 형식 검증
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('전화번호 형식이 올바르지 않습니다.')),
       );
-      return false;
+      return false;                                          // 유효하지 않으면 false 반환
     }
 
-    if (_passwordController.text.isNotEmpty) {
-      if (_passwordController.text.length < 6 ||
+    if (_passwordController.text.isNotEmpty) {               // 비밀번호가 비어있지 않으면
+      if (_passwordController.text.length < 6 ||             // 비밀번호 길이와 형식 검증
           !_passwordController.text.contains(RegExp(r'[a-z]'))) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('비밀번호는 6글자 이상이며 영어 소문자를 포함해야 합니다.')),
         );
-        return false;
+        return false;                                        // 유효하지 않으면 false 반환
       }
 
-      if (_passwordController.text != _confirmPasswordController.text) {
+      if (_passwordController.text != _confirmPasswordController.text) { // 비밀번호 일치 여부 검증
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('비밀번호가 일치하지 않습니다.')),
         );
-        return false;
+        return false;                                        // 유효하지 않으면 false 반환
       }
     }
 
-    return true;
+    return true;                                             // 모든 검증 통과 시 true 반환
   }
 
-  bool _validatePhone(String phone) {
-    return RegExp(r'^010-\d{4}-\d{4}$').hasMatch(phone);
+  bool _validatePhone(String phone) {                        // 전화번호 형식 검증 메서드
+    return RegExp(r'^010-\d{4}-\d{4}$').hasMatch(phone);     // 010-0000-0000 형식 검증
   }
 
-  Future<void> _checkRestaurantBeforeDelete() async {
-    User? user = _auth.currentUser;
-    if (user != null && _businessNumberController.text.isNotEmpty) {
+  Future<void> _checkRestaurantBeforeDelete() async {        // 회원 탈퇴 전에 레스토랑 소유 여부를 확인하는 메서드
+    User? user = _auth.currentUser;                          // 현재 사용자 가져오기
+    if (user != null && _businessNumberController.text.isNotEmpty) { // 사업자번호가 비어있지 않으면
       QuerySnapshot restaurantSnapshot = await _firestore
           .collection('restaurants')
           .where('registrationNumber',
               isEqualTo: _businessNumberController.text)
-          .get();
+          .get();                                            // 사업자번호로 레스토랑 검색
 
-      if (restaurantSnapshot.docs.isNotEmpty) {
+      if (restaurantSnapshot.docs.isNotEmpty) {              // 레스토랑 문서가 존재하면
         var restaurantData =
             restaurantSnapshot.docs.first.data() as Map<String, dynamic>;
-        if (restaurantData['isDeleted'] == false) {
+        if (restaurantData['isDeleted'] == false) {          // 레스토랑이 삭제되지 않은 경우
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('음식점 삭제 후 회원탈퇴를 진행해주세요.')),
           );
@@ -179,59 +173,25 @@ class _MemberInfoState extends State<memberInfo> {
       }
     }
 
-    // 사용자가 레스토랑을 소유하고 있지 않거나, isDeleted가 true인 경우에만 회원탈퇴 진행
-    _deleteUserAccount();
+    _deleteUserAccount();                                    // 레스토랑이 삭제되었거나 없으면 회원탈퇴 진행
   }
 
-  void showDeleteAccountDialog() {
-    final TextEditingController reasonController = TextEditingController();
-    final _formKey = GlobalKey<FormState>();
-
+  void showDeleteAccountDialog() {                           // 회원 탈퇴 확인 다이얼로그를 표시하는 메서드
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('회원탈퇴'),
-          content: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('회원탈퇴 사유를 입력해주세요.'),
-                TextFormField(
-                  controller: reasonController,
-                  decoration: InputDecoration(hintText: '사유 입력'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '사유를 입력해주세요.';
-                    }
-                    if (value.length < 2) {
-                      return '사유는 최소 2글자 이상이어야 합니다.';
-                    }
-                    if (value.length > 100) {
-                      return '사유는 최대 100글자 이하이어야 합니다.';
-                    }
-                    if (!_isValidKorean(value)) {
-                      return '한글만 입력이 가능합니다.';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
+          title: Text('회원탈퇴 확인'),
+          content: Text('정말로 회원탈퇴를 진행하시겠습니까?'),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),  // 취소 버튼을 눌렀을 때 다이얼로그 닫기
               child: Text('취소'),
             ),
             TextButton(
-              onPressed: () async {
-                if (_formKey.currentState!.validate()) {
-                  _checkRestaurantBeforeDelete();
-                }
+              onPressed: () {
+                Navigator.of(context).pop();                 // 확인 버튼을 눌렀을 때 다이얼로그 닫기
+                _checkRestaurantBeforeDelete();              // 회원탈퇴 진행
               },
               child: Text('확인'),
             ),
@@ -241,258 +201,102 @@ class _MemberInfoState extends State<memberInfo> {
     );
   }
 
-  bool _isValidKorean(String value) {
-    final koreanRegex = RegExp(r'^[가-힣\s]+$');
-    return koreanRegex.hasMatch(value);
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {                       // 화면을 그리는 빌드 메서드
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          '회원정보 수정',
-          style: TextStyle(
-            color: Color(0xFF1C1C21),
-            fontSize: 18,
-            fontFamily: 'Epilogue',
-            fontWeight: FontWeight.w700,
-            height: 0.07,
-            letterSpacing: -0.27,
-          ),
-        ),
+        title: Text('회원 정보'),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                SizedBox(height: 20),
-                Text(
-                  '회원 정보',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    height: 0.07,
-                    letterSpacing: -0.27,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 20),
-                Container(
-                  width: 500,
-                  child: Divider(color: Colors.black, thickness: 2.0),
-                ),
-                SizedBox(height: 30),
-                Text(
-                  '닉네임',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    height: 0.07,
-                    letterSpacing: -0.27,
-                  ),
-                ),
-                TextFormField(
-                  controller: _nicknameController,
-                  decoration: InputDecoration(),
-                  readOnly: true,
-                ),
-                SizedBox(height: 50),
-                Text(
-                  '이메일',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    height: 0.07,
-                    letterSpacing: -0.27,
-                  ),
-                ),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: InputDecoration(),
-                  readOnly: true,
-                ),
-                SizedBox(height: 50),
-                Text(
-                  '전화번호',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    height: 0.07,
-                    letterSpacing: -0.27,
-                  ),
-                ),
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: InputDecoration(
-                    hintText: '010-1234-5678',
-                  ),
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: <TextInputFormatter>[
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(
-                        13), // 010-1234-5678 형식 맞추기 위해 길이 제한
-                    PhoneNumberFormatter(),
-                  ],
-                  validator: (value) {
-                    if (!_validatePhone(value!)) {
-                      return '전화번호 형식이 올바르지 않습니다.';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 50),
-                Text(
-                  '새 비밀번호',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    height: 0.07,
-                    letterSpacing: -0.27,
-                  ),
-                ),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isPasswordObscured
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isPasswordObscured = !_isPasswordObscured;
-                        });
-                      },
-                    ),
-                  ),
-                  obscureText: _isPasswordObscured,
-                  validator: (value) {
-                    if (value!.isNotEmpty &&
-                        (value.length < 6 ||
-                            !value.contains(RegExp(r'[a-z]')))) {
-                      return '비밀번호는 6글자 이상이며 영어 소문자를 포함해야 합니다.';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 50),
-                Text(
-                  '새 비밀번호 재입력',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    height: 0.07,
-                    letterSpacing: -0.27,
-                  ),
-                ),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  decoration: InputDecoration(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isConfirmPasswordObscured
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isConfirmPasswordObscured =
-                              !_isConfirmPasswordObscured;
-                        });
-                      },
-                    ),
-                  ),
-                  obscureText: _isConfirmPasswordObscured,
-                  validator: (value) {
-                    if (value != _passwordController.text) {
-                      return '비밀번호가 일치하지 않습니다.';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 50),
-                Text(
-                  '사업자등록번호',
-                  style: TextStyle(
-                    color: Color(0xFF1C1C21),
-                    fontSize: 18,
-                    fontFamily: 'Epilogue',
-                    height: 0.07,
-                    letterSpacing: -0.27,
-                  ),
-                ),
-                TextFormField(
-                  controller: _businessNumberController,
-                  decoration: InputDecoration(),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                ),
-                SizedBox(height: 20),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: showDeleteAccountDialog,
-                    child: Text(
-                      '회원탈퇴',
-                      style: TextStyle(
-                        color: Color(0xFF1C1C21),
-                        fontSize: 18,
-                        fontFamily: 'Epilogue',
-                        fontWeight: FontWeight.w700,
-                        height: 0.07,
-                        letterSpacing: -0.27,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _updateUserInfo,
-                  child: Text('수정'),
-                ),
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _nicknameController,
+              decoration: InputDecoration(
+                labelText: '닉네임',
+              ),
+              enabled: false,
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: _emailController,
+              decoration: InputDecoration(
+                labelText: '이메일',
+              ),
+              enabled: false,
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: _phoneController,
+              decoration: InputDecoration(
+                labelText: '전화번호',
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(11),
+                PhoneNumberTextInputFormatter(),
               ],
             ),
-          ),
+            SizedBox(height: 16),
+            TextField(
+              controller: _businessNumberController,
+              decoration: InputDecoration(
+                labelText: '사업자등록번호 (선택사항)',
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+              ],
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: _passwordController,
+              decoration: InputDecoration(
+                labelText: '비밀번호',
+                suffixIcon: IconButton(
+                  icon: Icon(_isPasswordObscured
+                      ? Icons.visibility_off
+                      : Icons.visibility),
+                  onPressed: () {
+                    setState(() {
+                      _isPasswordObscured = !_isPasswordObscured;
+                    });
+                  },
+                ),
+              ),
+              obscureText: _isPasswordObscured,
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: _confirmPasswordController,
+              decoration: InputDecoration(
+                labelText: '비밀번호 확인',
+                suffixIcon: IconButton(
+                  icon: Icon(_isConfirmPasswordObscured
+                      ? Icons.visibility_off
+                      : Icons.visibility),
+                  onPressed: () {
+                    setState(() {
+                      _isConfirmPasswordObscured = !_isConfirmPasswordObscured;
+                    });
+                  },
+                ),
+              ),
+              obscureText: _isConfirmPasswordObscured,
+            ),
+            SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: _updateUserInfo,
+              child: Text('정보 수정'),
+            ),
+            ElevatedButton(
+              onPressed: showDeleteAccountDialog,
+              child: Text('회원탈퇴'),
+              style: ElevatedButton.styleFrom(primary: Colors.red),
+            ),
+          ],
         ),
       ),
-    );
-  }
-}
-
-class PhoneNumberFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final text = newValue.text.replaceAll(RegExp(r'\D'), '');
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < text.length; i++) {
-      if (i == 3 || i == 7) {
-        buffer.write('-');
-      }
-      buffer.write(text[i]);
-    }
-
-    final formattedText = buffer.toString();
-    return newValue.copyWith(
-      text: formattedText,
-      selection: TextSelection.collapsed(offset: formattedText.length),
     );
   }
 }
