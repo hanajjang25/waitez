@@ -7,32 +7,34 @@ class findPassword extends StatefulWidget {
 }
 
 class _FindPasswordState extends State<findPassword> {
-  final TextEditingController emailController = TextEditingController();
-  bool _isEmailFilled = false;
+  final TextEditingController emailController = TextEditingController(); // 이메일 입력 필드 컨트롤러
+  bool _isEmailFilled = false; // 이메일이 입력되었는지 여부를 저장하는 변수
 
   @override
   void initState() {
     super.initState();
-    emailController.addListener(_updateEmailState);
+    emailController.addListener(_updateEmailState); // 이메일 입력 상태를 업데이트하는 리스너 추가
   }
 
   @override
   void dispose() {
-    emailController.removeListener(_updateEmailState);
-    emailController.dispose();
+    emailController.removeListener(_updateEmailState); // 리스너 제거
+    emailController.dispose(); // 컨트롤러 해제
     super.dispose();
   }
 
+  // 이메일 입력 상태를 업데이트하는 함수
   void _updateEmailState() {
     setState(() {
       _isEmailFilled = emailController.text.isNotEmpty;
     });
   }
 
+  // 비밀번호 재설정 이메일을 전송하는 함수
   Future<void> sendResetEmail(BuildContext context) async {
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: emailController.text.trim(),
+        email: emailController.text.trim(), // 이메일 입력값에서 공백 제거
       );
       showDialog(
         context: context,
@@ -52,7 +54,7 @@ class _FindPasswordState extends State<findPassword> {
           );
         },
       );
-      Navigator.pushNamed(context, '/findPassword_email');
+      Navigator.pushNamed(context, '/findPassword_email'); // 이메일 전송 후 이동할 페이지
     } catch (e) {
       showDialog(
         context: context,
@@ -76,8 +78,8 @@ class _FindPasswordState extends State<findPassword> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width; // 화면 너비 가져오기
+    final screenHeight = MediaQuery.of(context).size.height; // 화면 높이 가져오기
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -85,7 +87,7 @@ class _FindPasswordState extends State<findPassword> {
           width: screenWidth,
           height: screenHeight,
           clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(color: Colors.white),
+          decoration: BoxDecoration(color: Colors.white), // 배경 색상 설정
           child: Stack(
             children: [
               Positioned(
@@ -143,7 +145,7 @@ class _FindPasswordState extends State<findPassword> {
                       TextFormField(
                         controller: emailController,
                         decoration: InputDecoration(
-                          hintText: 'wait@yonsei.ac.kr',
+                          hintText: 'wait@yonsei.ac.kr', // 예시 이메일 주소
                           hintStyle: TextStyle(
                             color: Color(0xFF9CA3AF),
                             fontSize: 12,
@@ -178,7 +180,7 @@ class _FindPasswordState extends State<findPassword> {
                       WidgetSpan(
                         child: TextButton(
                           onPressed: () {
-                            Navigator.pushNamed(context, '/');
+                            Navigator.pushNamed(context, '/'); // 로그인 페이지로 이동
                           },
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
@@ -191,7 +193,7 @@ class _FindPasswordState extends State<findPassword> {
                           child: Text(
                             ' Sign in',
                             style: TextStyle(
-                              color: Color(0xFF1A94FF),
+                              color: Color(0xFF1A94FF), // 하이라이트 색상
                             ),
                           ),
                         ),
@@ -207,7 +209,7 @@ class _FindPasswordState extends State<findPassword> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isEmailFilled
                           ? Color(0xFF1A94FF)
-                          : Color(0xFFF4F4F4),
+                          : Color(0xFFF4F4F4), // 이메일 입력에 따라 색상 변경
                       padding:
                           EdgeInsets.symmetric(horizontal: 120, vertical: 20),
                       shape: RoundedRectangleBorder(
@@ -216,7 +218,7 @@ class _FindPasswordState extends State<findPassword> {
                     ),
                     onPressed: _isEmailFilled
                         ? () {
-                            sendResetEmail(context);
+                            sendResetEmail(context); // 이메일 전송 함수 호출
                           }
                         : null,
                     child: Text(
