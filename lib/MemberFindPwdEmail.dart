@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 class findPasswordEmail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width; // 화면의 너비를 가져옵니다.
+    final screenHeight = MediaQuery.of(context).size.height; // 화면의 높이를 가져옵니다.
 
     // 비밀번호 재설정 이메일을 다시 보내는 함수
     void resendResetEmail() async {
@@ -14,10 +14,10 @@ class findPasswordEmail extends StatelessWidget {
 
       if (user != null) {
         try {
-          await _auth.sendPasswordResetEmail(email: user.email!);
+          await _auth.sendPasswordResetEmail(email: user.email!); // 비밀번호 재설정 이메일 전송
           print('Password reset email sent');
         } catch (e) {
-          print('Error sending password reset email: $e');
+          print('Error sending password reset email: $e'); // 에러 발생 시 로그 출력
         }
       }
     }
@@ -26,10 +26,10 @@ class findPasswordEmail extends StatelessWidget {
       body: Column(
         children: [
           Container(
-            width: screenWidth,
-            height: screenHeight,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(color: Colors.white),
+            width: screenWidth, // 화면의 전체 너비를 사용합니다.
+            height: screenHeight, // 화면의 전체 높이를 사용합니다.
+            clipBehavior: Clip.antiAlias, // 자식 요소가 부모의 경계를 넘지 않도록 클리핑
+            decoration: BoxDecoration(color: Colors.white), // 배경색을 흰색으로 설정
             child: Stack(
               children: [
                 Positioned(
@@ -38,7 +38,7 @@ class findPasswordEmail extends StatelessWidget {
                   child: Container(
                     width: 82,
                     height: 82,
-                    child: Image.asset('assets/images/sendmail.png'),
+                    child: Image.asset('assets/images/sendmail.png'), // 전송 이미지 삽입
                   ),
                 ),
                 Positioned(
@@ -61,8 +61,8 @@ class findPasswordEmail extends StatelessWidget {
                   child: SizedBox(
                     width: 283,
                     child: Text(
-                      '이메일을 확인 후\n 새비밀번호를 만드세요',
-                      textAlign: TextAlign.center,
+                      '이메일을 확인 후\n 새비밀번호를 만드세요', // 비밀번호 재설정 안내 문구
+                      textAlign: TextAlign.center, // 텍스트를 가운데 정렬
                       style: TextStyle(
                         color: Color(0xFF6B7280),
                         fontSize: 16,
@@ -94,7 +94,7 @@ class findPasswordEmail extends StatelessWidget {
                         ),
                         TextButton(
                           onPressed: () {
-                            resendResetEmail();
+                            resendResetEmail(); // 재전송 버튼 클릭 시 이메일 재전송
                           },
                           style: TextButton.styleFrom(
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -103,7 +103,7 @@ class findPasswordEmail extends StatelessWidget {
                           child: Text(
                             '재전송',
                             style: TextStyle(
-                              color: Color(0xFF1A94FF),
+                              color: Color(0xFF1A94FF), // 재전송 버튼의 색상 설정
                               fontSize: 16,
                             ),
                           ),
@@ -118,7 +118,7 @@ class findPasswordEmail extends StatelessWidget {
                     // 버튼을 가운데 정렬
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/');
+                        Navigator.pushNamed(context, '/'); // 로그인 페이지로 이동
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0xFF1A94FF), // 버튼의 배경색 설정
